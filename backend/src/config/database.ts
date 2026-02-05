@@ -3,19 +3,42 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const poolConfig: PoolConfig = {
+// Log connection details (excluding password) for debugging
+console.log('Database Configuration:', {
   host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT || '5432'),
+  port: process.env.DB_PORT || '5432',
   database: process.env.DB_NAME || 'waste_management',
   user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || 'postgres',
-  max: 20,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
-  ssl: process.env.DB_HOST?.includes('supabase.co')
-    ? { rejectUnauthorized: false }
-    : false,
-};
+  hasPassword: !!process.env.DB_PASSWORD,
+  hasConnectionString: !!process.env.DATABASE_URL,
+});
+
+// Prefer connection string if available, otherwise use individual parameters
+let poolConfig: PoolConfig;
+
+if (process.env.DATABASE_URL) {
+  poolConfig = {
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false },
+    max: 20,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 2000,
+  };
+} else {
+  poolConfig = {
+    host: process.env.DB_HOST || 'localhost',
+    port: parseInt(process.env.DB_PORT || '5432'),
+    database: process.env.DB_NAME || 'waste_management',
+    user: process.env.DB_USER || 'postgres',
+    password: process.env.DB_PASSWORD || 'postgres',
+    max: 20,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 2000,
+    ssl: process.env.DB_HOST?.includes('supabase.co')
+      ? { rejectUnauthorized: false }
+      : false,
+  };
+}
 
 export const pool = new Pool(poolConfig);
 
