@@ -11,13 +11,15 @@ export const enforceClientFilter = (req: AuthRequest, res: Response, next: NextF
   if (req.user?.role === UserRole.CLIENT_USER) {
     // Client user must have a client_id associated
     if (!req.user.clientId) {
-      return res.status(403).json({
+      res.status(403);
+      res.json({
         success: false,
         error: {
           code: 'NO_CLIENT_ASSOCIATION',
           message: 'Your account is not associated with a client. Please contact support.',
         },
       });
+      return;
     }
 
     // Add client_id to request for use in services
