@@ -12,6 +12,9 @@ const poolConfig: PoolConfig = {
   max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
+  ssl: process.env.DB_HOST?.includes('supabase.co')
+    ? { rejectUnauthorized: false }
+    : false,
 };
 
 export const pool = new Pool(poolConfig);
