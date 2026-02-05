@@ -6,7 +6,7 @@ import { UserRole } from '../types';
  * Middleware to enforce client data isolation for client_user role
  * Adds clientId filter to query parameters for client users
  */
-export const enforceClientFilter = (req: AuthRequest, res: Response, next: NextFunction) => {
+export const enforceClientFilter = (req: AuthRequest, res: Response, next: NextFunction): void => {
   // Only apply filtering to client_user role
   if (req.user?.role === UserRole.CLIENT_USER) {
     // Client user must have a client_id associated
