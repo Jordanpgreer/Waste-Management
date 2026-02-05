@@ -67,7 +67,22 @@ export const ClientsPage: React.FC = () => {
     } catch (error: any) {
       console.error('Failed to save client:', error);
       console.error('Error response:', error?.response);
-      const errorMessage = error?.response?.data?.error?.message || error?.message || 'Failed to save client. Please try again.';
+
+      let errorMessage = 'Failed to save client. Please try again.';
+
+      if (error?.response?.data?.error) {
+        const err = error.response.data.error;
+        errorMessage = err.message || 'Validation failed';
+
+        // If there are validation details, show them
+        if (err.details && Array.isArray(err.details)) {
+          const details = err.details.map((d: any) => `${d.path || d.param}: ${d.msg}`).join('\n');
+          errorMessage += '\n\nDetails:\n' + details;
+        }
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+
       alert(errorMessage);
     } finally {
       setSubmitting(false);
