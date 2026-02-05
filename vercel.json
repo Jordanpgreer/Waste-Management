@@ -1,0 +1,18 @@
+{
+  "version": 2,
+  "name": "waste-management-frontend",
+  "buildCommand": "cd frontend && npm install && npm run build",
+  "outputDirectory": "frontend/build",
+  "devCommand": "cd frontend && npm start",
+  "framework": "create-react-app",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ],
+  "env": {
+    "REACT_APP_API_URL": "@api_url"
+  },
+  "regions": ["iad1"]
+}
