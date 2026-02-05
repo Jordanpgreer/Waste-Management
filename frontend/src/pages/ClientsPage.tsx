@@ -6,6 +6,7 @@ import { Client } from '../types';
 export const ClientsPage: React.FC = () => {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -49,19 +50,27 @@ export const ClientsPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('Form submitted with data:', formData);
+    setSubmitting(true);
     try {
       if (editingClient) {
+        console.log('Updating client:', editingClient.id);
         await clientsApi.updateClient(editingClient.id, formData);
       } else {
-        await clientsApi.createClient(formData);
+        console.log('Creating new client...');
+        const result = await clientsApi.createClient(formData);
+        console.log('Client created successfully:', result);
       }
       setShowModal(false);
       resetForm();
       fetchClients();
     } catch (error: any) {
       console.error('Failed to save client:', error);
-      const errorMessage = error?.response?.data?.error?.message || 'Failed to save client. Please try again.';
+      console.error('Error response:', error?.response);
+      const errorMessage = error?.response?.data?.error?.message || error?.message || 'Failed to save client. Please try again.';
       alert(errorMessage);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -417,11 +426,12 @@ export const ClientsPage: React.FC = () => {
                         resetForm();
                       }}
                       className="btn-secondary"
+                      disabled={submitting}
                     >
                       Cancel
                     </button>
-                    <button type="submit" className="btn-primary">
-                      {editingClient ? 'Update Client' : 'Create Client'}
+                    <button type="submit" className="btn-primary" disabled={submitting}>
+                      {submitting ? 'Saving...' : (editingClient ? 'Update Client' : 'Create Client')}
                     </button>
                   </div>
                 </form>
