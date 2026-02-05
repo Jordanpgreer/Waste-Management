@@ -6,12 +6,12 @@ import { ApiResponse } from '../types';
 
 export const createClientValidation = [
   body('name').trim().notEmpty().withMessage('Client name is required'),
-  body('email').optional().isEmail().withMessage('Invalid email address'),
-  body('phone').optional().trim(),
-  body('billingEmail').optional().isEmail().withMessage('Invalid billing email'),
-  body('accountManagerId').optional().isUUID().withMessage('Invalid account manager ID'),
-  body('slaResponseHours').optional().isInt({ min: 1 }).withMessage('SLA response hours must be positive'),
-  body('slaResolutionHours').optional().isInt({ min: 1 }).withMessage('SLA resolution hours must be positive'),
+  body('email').optional({ checkFalsy: true }).isEmail().withMessage('Invalid email address'),
+  body('phone').optional({ checkFalsy: true }).trim(),
+  body('billingEmail').optional({ checkFalsy: true }).isEmail().withMessage('Invalid billing email'),
+  body('accountManagerId').optional({ checkFalsy: true }).isUUID().withMessage('Invalid account manager ID'),
+  body('slaResponseHours').optional({ checkFalsy: true }).isInt({ min: 1 }).withMessage('SLA response hours must be positive'),
+  body('slaResolutionHours').optional({ checkFalsy: true }).isInt({ min: 1 }).withMessage('SLA resolution hours must be positive'),
 ];
 
 export const createSiteValidation = [
