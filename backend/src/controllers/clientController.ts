@@ -7,7 +7,7 @@ import { ApiResponse } from '../types';
 export const createClientValidation = [
   body('name').trim().notEmpty().withMessage('Client name is required'),
   body('email').optional().isEmail().withMessage('Invalid email address'),
-  body('phone').optional().isMobilePhone('any').withMessage('Invalid phone number'),
+  body('phone').optional().trim(),
   body('billingEmail').optional().isEmail().withMessage('Invalid billing email'),
   body('accountManagerId').optional().isUUID().withMessage('Invalid account manager ID'),
   body('slaResponseHours').optional().isInt({ min: 1 }).withMessage('SLA response hours must be positive'),

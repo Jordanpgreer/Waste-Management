@@ -58,8 +58,10 @@ export const ClientsPage: React.FC = () => {
       setShowModal(false);
       resetForm();
       fetchClients();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to save client:', error);
+      const errorMessage = error?.response?.data?.error?.message || 'Failed to save client. Please try again.';
+      alert(errorMessage);
     }
   };
 
