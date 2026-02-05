@@ -41,7 +41,7 @@ export class AuthService {
       const result = await client.query(
         `INSERT INTO users (org_id, email, password_hash, first_name, last_name, phone, role)
          VALUES ($1, $2, $3, $4, $5, $6, $7)
-         RETURNING id, org_id, email, first_name, last_name, phone, role, client_id, is_active, email_verified,
+         RETURNING id, org_id, email, first_name, last_name, phone, role, is_active, email_verified,
                    created_at, updated_at`,
         [
           input.orgId,
@@ -63,7 +63,6 @@ export class AuthService {
         orgId: user.org_id,
         email: user.email,
         role: user.role,
-        clientId: user.client_id,
       });
 
       const refreshToken = generateRefreshToken({
@@ -71,7 +70,6 @@ export class AuthService {
         orgId: user.org_id,
         email: user.email,
         role: user.role,
-        clientId: user.client_id,
       });
 
       return {
@@ -125,7 +123,6 @@ export class AuthService {
       orgId: user.org_id,
       email: user.email,
       role: user.role,
-      clientId: user.client_id,
     });
 
     const refreshToken = generateRefreshToken({
@@ -133,7 +130,6 @@ export class AuthService {
       orgId: user.org_id,
       email: user.email,
       role: user.role,
-      clientId: user.client_id,
     });
 
     const { password_hash, ...userWithoutPassword } = user;
@@ -151,7 +147,7 @@ export class AuthService {
 
   async getUserById(userId: string, orgId: string): Promise<Omit<User, 'password_hash'> | null> {
     const result = await pool.query(
-      `SELECT id, org_id, email, first_name, last_name, phone, role, client_id, is_active,
+      `SELECT id, org_id, email, first_name, last_name, phone, role, is_active,
               email_verified, last_login_at, created_at, updated_at
        FROM users
        WHERE id = $1 AND org_id = $2 AND deleted_at IS NULL`,

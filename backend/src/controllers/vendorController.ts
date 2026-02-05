@@ -6,13 +6,13 @@ import { ApiResponse } from '../types';
 
 export const createVendorValidation = [
   body('name').trim().notEmpty().withMessage('Vendor name is required'),
-  body('email').optional().isEmail().withMessage('Invalid email address'),
-  body('phone').optional().isMobilePhone('any').withMessage('Invalid phone number'),
-  body('emergencyPhone').optional().isMobilePhone('any').withMessage('Invalid emergency phone number'),
-  body('primaryContactEmail').optional().isEmail().withMessage('Invalid primary contact email'),
-  body('primaryContactPhone').optional().isMobilePhone('any').withMessage('Invalid primary contact phone'),
-  body('website').optional().isURL().withMessage('Invalid website URL'),
-  body('performanceScore').optional().isFloat({ min: 0, max: 100 }).withMessage('Performance score must be between 0 and 100'),
+  body('email').optional({ checkFalsy: true }).isEmail().withMessage('Invalid email address'),
+  body('phone').optional({ checkFalsy: true }).trim(),
+  body('emergencyPhone').optional({ checkFalsy: true }).trim(),
+  body('primaryContactEmail').optional({ checkFalsy: true }).isEmail().withMessage('Invalid primary contact email'),
+  body('primaryContactPhone').optional({ checkFalsy: true }).trim(),
+  body('website').optional({ checkFalsy: true }).isURL().withMessage('Invalid website URL'),
+  body('performanceScore').optional({ checkFalsy: true }).isFloat({ min: 0, max: 100 }).withMessage('Performance score must be between 0 and 100'),
 ];
 
 export const createVendor = async (req: AuthRequest, res: Response, next: NextFunction) => {

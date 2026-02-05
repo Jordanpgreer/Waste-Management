@@ -21,9 +21,10 @@ export const createSiteValidation = [
   body('city').trim().notEmpty().withMessage('City is required'),
   body('state').trim().notEmpty().withMessage('State is required'),
   body('zip').trim().notEmpty().withMessage('ZIP code is required'),
-  body('siteManagerEmail').optional().isEmail().withMessage('Invalid site manager email'),
-  body('latitude').optional().isFloat({ min: -90, max: 90 }).withMessage('Invalid latitude'),
-  body('longitude').optional().isFloat({ min: -180, max: 180 }).withMessage('Invalid longitude'),
+  body('siteManagerEmail').optional({ checkFalsy: true }).isEmail().withMessage('Invalid site manager email'),
+  body('siteManagerPhone').optional({ checkFalsy: true }).trim(),
+  body('latitude').optional({ checkFalsy: true }).isFloat({ min: -90, max: 90 }).withMessage('Invalid latitude'),
+  body('longitude').optional({ checkFalsy: true }).isFloat({ min: -180, max: 180 }).withMessage('Invalid longitude'),
 ];
 
 export const createClient = async (req: AuthRequest, res: Response, next: NextFunction) => {
