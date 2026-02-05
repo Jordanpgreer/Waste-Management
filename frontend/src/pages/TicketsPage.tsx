@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { ticketsApi, CreateTicketInput, TicketFilters } from '../api/tickets';
 import { clientsApi } from '../api/clients';
@@ -31,18 +31,7 @@ export const TicketsPage: React.FC = () => {
   const [autoClassification, setAutoClassification] = useState<any>(null);
   const [classifying, setClassifying] = useState(false);
 
-  useEffect(() => {
-    fetchTickets();
-    fetchClients();
-  }, [page, filters, searchTerm]);
-
-  useEffect(() => {
-    if (formData.client_id) {
-      fetchSitesForClient(formData.client_id);
-    }
-  }, [formData.client_id]);
-
-  const fetchTickets = async () => {
+  const fetchTickets = useCallback(async () => {
     try {
       setLoading(true);
       const response = await ticketsApi.listTickets({
@@ -58,7 +47,18 @@ export const TicketsPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, filters, searchTerm]);
+
+  useEffect(() => {
+    fetchTickets();
+    fetchClients();
+  }, [fetchTickets]);
+
+  useEffect(() => {
+    if (formData.client_id) {
+      fetchSitesForClient(formData.client_id);
+    }
+  }, [formData.client_id]);
 
   const fetchClients = async () => {
     try {

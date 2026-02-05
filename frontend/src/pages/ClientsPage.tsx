@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { clientsApi, CreateClientInput } from '../api/clients';
 import { Client } from '../types';
@@ -26,11 +26,7 @@ export const ClientsPage: React.FC = () => {
     notes: '',
   });
 
-  useEffect(() => {
-    fetchClients();
-  }, [page, searchTerm]);
-
-  const fetchClients = async () => {
+  const fetchClients = useCallback(async () => {
     try {
       setLoading(true);
       const response = await clientsApi.listClients({
@@ -45,7 +41,11 @@ export const ClientsPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, searchTerm]);
+
+  useEffect(() => {
+    fetchClients();
+  }, [fetchClients]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

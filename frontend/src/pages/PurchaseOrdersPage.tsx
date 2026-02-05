@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { listPOs, deletePO, approvePO, sendPO, PurchaseOrder } from '../api/purchaseOrder';
 import { CreatePOModal } from '../components/CreatePOModal';
@@ -23,11 +23,7 @@ export const PurchaseOrdersPage: React.FC = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
 
-  useEffect(() => {
-    fetchPOs();
-  }, [page, searchTerm, statusFilter]);
-
-  const fetchPOs = async () => {
+  const fetchPOs = useCallback(async () => {
     try {
       setLoading(true);
       const response = await listPOs({
@@ -44,7 +40,11 @@ export const PurchaseOrdersPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, searchTerm, statusFilter]);
+
+  useEffect(() => {
+    fetchPOs();
+  }, [fetchPOs]);
 
   const handleDelete = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this purchase order?')) {

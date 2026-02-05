@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { listClientInvoices, approveClientInvoice, sendClientInvoice, ClientInvoice } from '../api/clientInvoice';
 import { GenerateClientInvoiceModal } from '../components/GenerateClientInvoiceModal';
@@ -24,11 +24,7 @@ export const ClientInvoicesPage: React.FC = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
 
-  useEffect(() => {
-    fetchInvoices();
-  }, [page, searchTerm, statusFilter]);
-
-  const fetchInvoices = async () => {
+  const fetchInvoices = useCallback(async () => {
     try {
       setLoading(true);
       const response = await listClientInvoices({
@@ -45,7 +41,11 @@ export const ClientInvoicesPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, searchTerm, statusFilter]);
+
+  useEffect(() => {
+    fetchInvoices();
+  }, [fetchInvoices]);
 
   const handleApprove = async (id: string) => {
     try {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { clientsApi, CreateSiteInput } from '../api/clients';
 import { Client, ClientSite } from '../types';
@@ -29,12 +29,7 @@ export const SitesPage: React.FC = () => {
     specialInstructions: '',
   });
 
-  useEffect(() => {
-    fetchSites();
-    fetchClients();
-  }, [page, searchTerm]);
-
-  const fetchSites = async () => {
+  const fetchSites = useCallback(async () => {
     try {
       setLoading(true);
       const response = await clientsApi.listSites({
@@ -49,7 +44,12 @@ export const SitesPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, searchTerm]);
+
+  useEffect(() => {
+    fetchSites();
+    fetchClients();
+  }, [fetchSites]);
 
   const fetchClients = async () => {
     try {

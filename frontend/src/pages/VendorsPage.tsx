@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { listVendors, deleteVendor, Vendor } from '../api/vendor';
 import { CreateVendorModal } from '../components/CreateVendorModal';
@@ -34,11 +34,7 @@ export const VendorsPage: React.FC = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
 
-  useEffect(() => {
-    fetchVendors();
-  }, [page, searchTerm, vendorTypeFilter, serviceCapabilityFilter]);
-
-  const fetchVendors = async () => {
+  const fetchVendors = useCallback(async () => {
     try {
       setLoading(true);
       const response = await listVendors({
@@ -56,7 +52,11 @@ export const VendorsPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, searchTerm, vendorTypeFilter, serviceCapabilityFilter]);
+
+  useEffect(() => {
+    fetchVendors();
+  }, [fetchVendors]);
 
   const handleEdit = (vendor: Vendor) => {
     setEditingVendor(vendor);
