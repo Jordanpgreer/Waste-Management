@@ -4,14 +4,14 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 // Log connection details (excluding password) for debugging
-console.log('Database Configuration:', {
-  host: process.env.DB_HOST || 'localhost',
-  port: process.env.DB_PORT || '5432',
-  database: process.env.DB_NAME || 'waste_management',
-  user: process.env.DB_USER || 'postgres',
-  hasPassword: !!process.env.DB_PASSWORD,
-  hasConnectionString: !!process.env.DATABASE_URL,
-});
+console.log('=== Database Configuration ===');
+console.log('Host:', process.env.DB_HOST || 'localhost');
+console.log('Port:', process.env.DB_PORT || '5432');
+console.log('Database:', process.env.DB_NAME || 'waste_management');
+console.log('User:', process.env.DB_USER || 'postgres');
+console.log('Has Password:', !!process.env.DB_PASSWORD);
+console.log('Has Connection String:', !!process.env.DATABASE_URL);
+console.log('==============================');
 
 // Prefer connection string if available, otherwise use individual parameters
 let poolConfig: PoolConfig;
