@@ -1,23 +1,23 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { DashboardLayout } from '../components/DashboardLayout';
-import { listClientInvoices, approveClientInvoice, sendClientInvoice, ClientInvoice } from '../api/clientInvoice';
-import { GenerateClientInvoiceModal } from '../components/GenerateClientInvoiceModal';
-import { ViewClientInvoiceModal } from '../components/ViewClientInvoiceModal';
+import { listVendorInvoices, deleteVendorInvoice, VendorInvoice } from '../api/vendorInvoice';
+import { UploadVendorInvoiceModal } from '../components/UploadVendorInvoiceModal';
+import { ViewVendorInvoiceModal } from '../components/ViewVendorInvoiceModal';
 
 const STATUS_COLORS: Record<string, string> = {
-  draft: 'bg-gray-100 text-gray-800',
   pending: 'bg-yellow-100 text-yellow-800',
-  sent: 'bg-blue-100 text-blue-800',
-  paid: 'bg-green-100 text-green-800',
-  overdue: 'bg-red-100 text-red-800',
-  cancelled: 'bg-gray-100 text-gray-800',
+  under_review: 'bg-blue-100 text-blue-800',
+  approved: 'bg-green-100 text-green-800',
+  disputed: 'bg-red-100 text-red-800',
+  paid: 'bg-purple-100 text-purple-800',
+  rejected: 'bg-gray-100 text-gray-800',
 };
 
-export const ClientInvoicesPage: React.FC = () => {
-  const [invoices, setInvoices] = useState<ClientInvoice[]>([]);
+export const VendorInvoicesPage: React.FC = () => {
+  const [invoices, setInvoices] = useState<VendorInvoice[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showGenerateModal, setShowGenerateModal] = useState(false);
-  const [viewingInvoice, setViewingInvoice] = useState<ClientInvoice | null>(null);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [viewingInvoice, setViewingInvoice] = useState<VendorInvoice | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [page, setPage] = useState(1);
@@ -27,7 +27,7 @@ export const ClientInvoicesPage: React.FC = () => {
   const fetchInvoices = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await listClientInvoices({
+      const response = await listVendorInvoices({
         page,
         limit: 10,
         search: searchTerm || undefined,
@@ -37,7 +37,8 @@ export const ClientInvoicesPage: React.FC = () => {
       setTotalPages(response.total_pages);
       setTotal(response.total);
     } catch (error) {
-      console.error('Failed to fetch client invoices:', error);
+      console.error('Failed to fetch vendor invoices:', error);
+      alert('Failed to load vendor invoices. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -47,29 +48,23 @@ export const ClientInvoicesPage: React.FC = () => {
     fetchInvoices();
   }, [fetchInvoices]);
 
-  const handleApprove = async (id: string) => {
-    try {
-      await approveClientInvoice(id);
-      fetchInvoices();
-    } catch (error) {
-      console.error('Failed to approve invoice:', error);
-      alert('Failed to approve invoice. Please try again.');
-    }
-  };
-
-  const handleSend = async (id: string) => {
-    try {
-      await sendClientInvoice(id);
-      fetchInvoices();
-    } catch (error) {
-      console.error('Failed to send invoice:', error);
-      alert('Failed to send invoice. Please try again.');
-    }
-  };
-
-  const handleGenerateSuccess = () => {
-    setShowGenerateModal(false);
+  const handleUploadSuccess = () => {
+    setShowUploadModal(false);
     fetchInvoices();
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this invoice?')) {
+      return;
+    }
+
+    try {
+      await deleteVendorInvoice(id);
+      fetchInvoices();
+    } catch (error) {
+      console.error('Failed to delete invoice:', error);
+      alert('Failed to delete invoice. Please try again.');
+    }
   };
 
   const formatCurrency = (amount: number) => {
@@ -79,15 +74,26 @@ export const ClientInvoicesPage: React.FC = () => {
     }).format(amount);
   };
 
-  const calculateTotalRevenue = () => {
+  const formatStatus = (status: string) => {
+    return status
+      .split('_')
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
+
+  const calculateTotalAmount = () => {
+    return invoices.reduce((sum, inv) => sum + inv.total, 0);
+  };
+
+  const calculatePaidAmount = () => {
     return invoices
-      .filter(inv => inv.status === 'paid')
+      .filter((inv) => inv.status === 'paid')
       .reduce((sum, inv) => sum + inv.total, 0);
   };
 
-  const calculateOutstanding = () => {
+  const calculatePendingAmount = () => {
     return invoices
-      .filter(inv => inv.status === 'sent' || inv.status === 'overdue')
+      .filter((inv) => inv.status !== 'paid' && inv.status !== 'rejected')
       .reduce((sum, inv) => sum + inv.total, 0);
   };
 
@@ -96,36 +102,33 @@ export const ClientInvoicesPage: React.FC = () => {
       <div className="p-6">
         <div className="mb-6 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Client Invoices</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Vendor Invoices</h1>
             <p className="mt-1 text-sm text-gray-600">
-              Manage invoices sent to clients
+              Upload and manage invoices received from vendors
             </p>
           </div>
-          <button
-            onClick={() => setShowGenerateModal(true)}
-            className="btn-primary"
-          >
-            + Generate Invoice
+          <button onClick={() => setShowUploadModal(true)} className="btn-primary">
+            + Upload Invoice
           </button>
         </div>
 
         <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
           <div className="rounded-lg bg-white p-6 shadow">
-            <div className="text-sm font-medium text-gray-500">Total Revenue</div>
-            <div className="mt-2 text-3xl font-bold text-green-600">
-              {formatCurrency(calculateTotalRevenue())}
-            </div>
-          </div>
-          <div className="rounded-lg bg-white p-6 shadow">
-            <div className="text-sm font-medium text-gray-500">Outstanding</div>
-            <div className="mt-2 text-3xl font-bold text-yellow-600">
-              {formatCurrency(calculateOutstanding())}
-            </div>
-          </div>
-          <div className="rounded-lg bg-white p-6 shadow">
-            <div className="text-sm font-medium text-gray-500">Total Invoices</div>
+            <div className="text-sm font-medium text-gray-500">Total Amount</div>
             <div className="mt-2 text-3xl font-bold text-blue-600">
-              {total}
+              {formatCurrency(calculateTotalAmount())}
+            </div>
+          </div>
+          <div className="rounded-lg bg-white p-6 shadow">
+            <div className="text-sm font-medium text-gray-500">Paid</div>
+            <div className="mt-2 text-3xl font-bold text-green-600">
+              {formatCurrency(calculatePaidAmount())}
+            </div>
+          </div>
+          <div className="rounded-lg bg-white p-6 shadow">
+            <div className="text-sm font-medium text-gray-500">Pending</div>
+            <div className="mt-2 text-3xl font-bold text-yellow-600">
+              {formatCurrency(calculatePendingAmount())}
             </div>
           </div>
         </div>
@@ -139,7 +142,7 @@ export const ClientInvoicesPage: React.FC = () => {
               type="text"
               id="search"
               className="form-input"
-              placeholder="Search by invoice number..."
+              placeholder="Search by invoice number or vendor..."
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
@@ -161,18 +164,19 @@ export const ClientInvoicesPage: React.FC = () => {
               }}
             >
               <option value="">All Statuses</option>
-              <option value="draft">Draft</option>
               <option value="pending">Pending</option>
-              <option value="sent">Sent</option>
+              <option value="under_review">Under Review</option>
+              <option value="approved">Approved</option>
+              <option value="disputed">Disputed</option>
               <option value="paid">Paid</option>
-              <option value="overdue">Overdue</option>
+              <option value="rejected">Rejected</option>
             </select>
           </div>
         </div>
 
         {loading ? (
           <div className="flex h-64 items-center justify-center">
-            <div className="text-gray-500">Loading invoices...</div>
+            <div className="text-gray-500">Loading vendor invoices...</div>
           </div>
         ) : invoices.length === 0 ? (
           <div className="rounded-lg border-2 border-dashed border-gray-300 p-12 text-center">
@@ -186,16 +190,16 @@ export const ClientInvoicesPage: React.FC = () => {
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 strokeWidth={2}
-                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
               />
             </svg>
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No invoices</h3>
+            <h3 className="mt-2 text-sm font-medium text-gray-900">No vendor invoices</h3>
             <p className="mt-1 text-sm text-gray-500">
-              Get started by generating a client invoice.
+              Get started by uploading a vendor invoice PDF.
             </p>
             <div className="mt-6">
-              <button onClick={() => setShowGenerateModal(true)} className="btn-primary">
-                + Generate Invoice
+              <button onClick={() => setShowUploadModal(true)} className="btn-primary">
+                + Upload Invoice
               </button>
             </div>
           </div>
@@ -209,13 +213,19 @@ export const ClientInvoicesPage: React.FC = () => {
                       Invoice #
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                      Period
+                      Vendor
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                      Date
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                       Status
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                      Total
+                      Amount
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                      OCR
                     </th>
                     <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
                       Actions
@@ -226,21 +236,51 @@ export const ClientInvoicesPage: React.FC = () => {
                   {invoices.map((invoice) => (
                     <tr key={invoice.id} className="hover:bg-gray-50">
                       <td className="whitespace-nowrap px-6 py-4">
-                        <div className="text-sm font-medium text-gray-900">{invoice.invoice_number}</div>
+                        <div className="text-sm font-medium text-gray-900">
+                          {invoice.invoice_number}
+                        </div>
                         <div className="text-sm text-gray-500">
                           {new Date(invoice.invoice_date).toLocaleDateString()}
                         </div>
                       </td>
+                      <td className="px-6 py-4">
+                        <div className="text-sm text-gray-900">{invoice.vendor_name}</div>
+                        {invoice.client_name && (
+                          <div className="text-sm text-gray-500">for {invoice.client_name}</div>
+                        )}
+                      </td>
                       <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                        {new Date(invoice.period_start).toLocaleDateString()} - {new Date(invoice.period_end).toLocaleDateString()}
+                        {new Date(invoice.created_at).toLocaleDateString()}
                       </td>
                       <td className="whitespace-nowrap px-6 py-4">
-                        <span className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${STATUS_COLORS[invoice.status]}`}>
-                          {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
+                        <span
+                          className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
+                            STATUS_COLORS[invoice.status]
+                          }`}
+                        >
+                          {formatStatus(invoice.status)}
                         </span>
                       </td>
                       <td className="whitespace-nowrap px-6 py-4 text-sm font-semibold text-gray-900">
                         {formatCurrency(invoice.total)}
+                      </td>
+                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                        {invoice.ocr_data ? (
+                          <div className="flex items-center">
+                            <div
+                              className={`h-2 w-2 rounded-full mr-2 ${
+                                invoice.ocr_data.confidence >= 70
+                                  ? 'bg-green-500'
+                                  : invoice.ocr_data.confidence >= 40
+                                  ? 'bg-yellow-500'
+                                  : 'bg-red-500'
+                              }`}
+                            ></div>
+                            {invoice.ocr_data.confidence}%
+                          </div>
+                        ) : (
+                          'N/A'
+                        )}
                       </td>
                       <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
                         <button
@@ -249,30 +289,12 @@ export const ClientInvoicesPage: React.FC = () => {
                         >
                           View
                         </button>
-                        {invoice.status === 'draft' && (
-                          <>
-                            <button
-                              onClick={() => handleApprove(invoice.id)}
-                              className="text-green-600 hover:text-green-900 mr-3"
-                            >
-                              Approve
-                            </button>
-                            <button
-                              onClick={() => handleSend(invoice.id)}
-                              className="text-purple-600 hover:text-purple-900"
-                            >
-                              Send
-                            </button>
-                          </>
-                        )}
-                        {invoice.status === 'pending' && (
-                          <button
-                            onClick={() => handleSend(invoice.id)}
-                            className="text-purple-600 hover:text-purple-900"
-                          >
-                            Send
-                          </button>
-                        )}
+                        <button
+                          onClick={() => handleDelete(invoice.id)}
+                          className="text-red-600 hover:text-red-900"
+                        >
+                          Delete
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -309,17 +331,18 @@ export const ClientInvoicesPage: React.FC = () => {
         )}
       </div>
 
-      {showGenerateModal && (
-        <GenerateClientInvoiceModal
-          onClose={() => setShowGenerateModal(false)}
-          onSuccess={handleGenerateSuccess}
+      {showUploadModal && (
+        <UploadVendorInvoiceModal
+          onClose={() => setShowUploadModal(false)}
+          onSuccess={handleUploadSuccess}
         />
       )}
 
       {viewingInvoice && (
-        <ViewClientInvoiceModal
+        <ViewVendorInvoiceModal
           invoice={viewingInvoice}
           onClose={() => setViewingInvoice(null)}
+          onUpdate={fetchInvoices}
         />
       )}
     </DashboardLayout>

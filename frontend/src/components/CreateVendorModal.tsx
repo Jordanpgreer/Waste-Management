@@ -18,10 +18,8 @@ const SERVICE_CAPABILITIES = [
 ];
 
 const VENDOR_TYPES = [
-  { value: 'hauler', label: 'Hauler' },
-  { value: 'service_provider', label: 'Service Provider' },
-  { value: 'broker', label: 'Broker' },
-  { value: 'facility', label: 'Facility' },
+  { value: 'direct_vendor', label: 'Direct Vendor' },
+  { value: 'third_party_vendor', label: 'Third Party Vendor' },
 ];
 
 export const CreateVendorModal: React.FC<CreateVendorModalProps> = ({ onClose, onSuccess }) => {
@@ -44,7 +42,6 @@ export const CreateVendorModal: React.FC<CreateVendorModalProps> = ({ onClose, o
     primaryContactEmail: '',
     serviceCapabilities: [],
     coverageAreas: [],
-    performanceScore: 75,
   });
   const [coverageAreasInput, setCoverageAreasInput] = useState('');
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
@@ -94,13 +91,6 @@ export const CreateVendorModal: React.FC<CreateVendorModalProps> = ({ onClose, o
 
     if (formData.website && !/^https?:\/\/.+/.test(formData.website)) {
       errors.website = 'Website must start with http:// or https://';
-    }
-
-    if (formData.performanceScore !== undefined) {
-      const score = Number(formData.performanceScore);
-      if (isNaN(score) || score < 0 || score > 100) {
-        errors.performanceScore = 'Performance score must be between 0 and 100';
-      }
     }
 
     setValidationErrors(errors);
@@ -503,37 +493,6 @@ export const CreateVendorModal: React.FC<CreateVendorModalProps> = ({ onClose, o
                     <p className="mt-1 text-xs text-secondary-500">
                       Enter ZIP codes separated by commas
                     </p>
-                  </div>
-                </div>
-
-                {/* Performance Score */}
-                <div>
-                  <h4 className="text-sm font-semibold text-secondary-900 mb-3 uppercase tracking-wide">
-                    Performance Score
-                  </h4>
-                  <div>
-                    <label className="block text-sm font-medium text-secondary-700 mb-2">
-                      Score (0-100)
-                    </label>
-                    <div className="flex items-center space-x-4">
-                      <input
-                        type="range"
-                        name="performanceScore"
-                        min="0"
-                        max="100"
-                        className="flex-1"
-                        value={formData.performanceScore}
-                        onChange={handleChange}
-                      />
-                      <span className="text-lg font-semibold text-primary-600 w-12 text-center">
-                        {formData.performanceScore}
-                      </span>
-                    </div>
-                    {validationErrors.performanceScore && (
-                      <p className="mt-1 text-xs text-danger">
-                        {validationErrors.performanceScore}
-                      </p>
-                    )}
                   </div>
                 </div>
               </div>

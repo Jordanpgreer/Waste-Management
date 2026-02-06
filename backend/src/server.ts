@@ -7,6 +7,7 @@ import vendorRoutes from './routes/vendorRoutes';
 import purchaseOrderRoutes from './routes/purchaseOrderRoutes';
 import clientInvoiceRoutes from './routes/clientInvoiceRoutes';
 import invoiceMatchingRoutes from './routes/invoiceMatchingRoutes';
+import vendorInvoiceRoutes from './routes/vendorInvoiceRoutes';
 import { createTicketRoutes } from './routes/ticket.routes';
 import { TicketService } from './services/ticket.service';
 import { TicketController } from './controllers/ticket.controller';
@@ -49,6 +50,7 @@ app.use(`/api/${API_VERSION}/vendors`, vendorRoutes);
 app.use(`/api/${API_VERSION}/purchase-orders`, purchaseOrderRoutes);
 app.use(`/api/${API_VERSION}/client-invoices`, clientInvoiceRoutes);
 app.use(`/api/${API_VERSION}/invoice-matching`, invoiceMatchingRoutes);
+app.use(`/api/${API_VERSION}/vendor-invoices`, vendorInvoiceRoutes);
 app.use(`/api/${API_VERSION}/tickets`, createTicketRoutes(ticketController));
 
 app.use(notFoundHandler);

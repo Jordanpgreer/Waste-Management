@@ -16,10 +16,8 @@ const SERVICE_CAPABILITIES = [
 ];
 
 const VENDOR_TYPES = [
-  { value: 'hauler', label: 'Hauler' },
-  { value: 'service_provider', label: 'Service Provider' },
-  { value: 'broker', label: 'Broker' },
-  { value: 'facility', label: 'Facility' },
+  { value: 'direct_vendor', label: 'Direct Vendor' },
+  { value: 'third_party_vendor', label: 'Third Party Vendor' },
 ];
 
 export const VendorsPage: React.FC = () => {

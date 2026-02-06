@@ -10,7 +10,8 @@ import { SitesPage } from './pages/SitesPage';
 import { TicketsPage } from './pages/TicketsPage';
 import { VendorsPage } from './pages/VendorsPage';
 import { PurchaseOrdersPage } from './pages/PurchaseOrdersPage';
-import { ClientInvoicesPage } from './pages/ClientInvoicesPage';
+import { ClientBillingPage } from './pages/ClientBillingPage';
+import { VendorInvoicesPage } from './pages/VendorInvoicesPage';
 
 function App() {
   return (
@@ -66,10 +67,19 @@ function App() {
           />
 
           <Route
-            path="/invoices"
+            path="/vendor-invoices"
             element={
               <ProtectedRoute>
-                <ClientInvoicesPage />
+                <VendorInvoicesPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/client-billing"
+            element={
+              <ProtectedRoute>
+                <ClientBillingPage />
               </ProtectedRoute>
             }
           />

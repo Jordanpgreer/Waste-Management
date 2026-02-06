@@ -57,6 +57,15 @@ class ApiClient {
     const response = await this.client.delete<ApiResponse<T>>(url);
     return response.data;
   }
+
+  async postMultipart<T>(url: string, formData: FormData): Promise<ApiResponse<T>> {
+    const response = await this.client.post<ApiResponse<T>>(url, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  }
 }
 
 export const apiClient = new ApiClient();
