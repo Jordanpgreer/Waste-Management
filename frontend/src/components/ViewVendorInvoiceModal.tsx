@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { VendorInvoice, updateVendorInvoice, getVendorInvoicePdfUrl } from '../api/vendorInvoice';
 
 interface ViewVendorInvoiceModalProps {
@@ -31,15 +31,7 @@ export const ViewVendorInvoiceModal: React.FC<ViewVendorInvoiceModalProps> = ({
     notes: invoice.notes || '',
   });
 
-  useEffect(() => {
-    if (invoice.file_path) {
-      fetchPdfUrl();
-    } else {
-      setLoadingPdf(false);
-    }
-  }, [invoice.id]);
-
-  const fetchPdfUrl = async () => {
+  const fetchPdfUrl = useCallback(async () => {
     try {
       setLoadingPdf(true);
       const url = await getVendorInvoicePdfUrl(invoice.id);
@@ -50,7 +42,15 @@ export const ViewVendorInvoiceModal: React.FC<ViewVendorInvoiceModalProps> = ({
     } finally {
       setLoadingPdf(false);
     }
-  };
+  }, [invoice.id]);
+
+  useEffect(() => {
+    if (invoice.file_path) {
+      fetchPdfUrl();
+    } else {
+      setLoadingPdf(false);
+    }
+  }, [invoice.file_path, fetchPdfUrl]);
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
