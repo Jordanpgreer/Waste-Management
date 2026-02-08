@@ -225,7 +225,7 @@ export const ticketsApi = {
     const blob = await response.blob();
     const disposition = response.headers.get('content-disposition') || '';
     const filenameMatch =
-      disposition.match(/filename\*=UTF-8''([^;]+)/i) || disposition.match(/filename=\"?([^\";]+)\"?/i);
+      disposition.match(/filename\*=UTF-8''([^;]+)/i) || disposition.match(/filename="?([^";]+)"?/i);
     const fileName = filenameMatch?.[1] ? decodeURIComponent(filenameMatch[1]) : 'ticket-correspondence.eml';
 
     const url = window.URL.createObjectURL(blob);

@@ -81,7 +81,7 @@ export const CreatePOModal: React.FC<CreatePOModalProps> = ({ onClose, onSuccess
     };
 
     fetchSites();
-  }, [formData.client_id]);
+  }, [formData.client_id, formData.site_id]);
 
   const handleAddLineItem = () => {
     setLineItems((prev) => [

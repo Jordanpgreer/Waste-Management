@@ -124,11 +124,11 @@ export const TicketsPage: React.FC = () => {
   const getApiErrorMessage = (error: unknown, fallback: string) =>
     (error as any)?.response?.data?.error?.message || fallback;
 
-  const getDefaultClientEmail = (ticket: Ticket | null): string => {
+  const getDefaultClientEmail = useCallback((ticket: Ticket | null): string => {
     if (!ticket) return '';
     const match = clients.find((c) => c.id === ticket.client_id);
     return match?.billing_email || match?.email || '';
-  };
+  }, [clients]);
 
   const formatRequestNumber = (ticketNumber: string) => `Request #${ticketNumber}`;
   const getClientStreamLabel = (stream: ClientStreamOption) =>
@@ -232,7 +232,7 @@ export const TicketsPage: React.FC = () => {
         }
       })();
     }
-  }, [location.search]);
+  }, [location.search, navigate, getDefaultClientEmail]);
 
   useEffect(() => {
     if (!isClientUser || clients.length === 0) {
@@ -271,7 +271,7 @@ export const TicketsPage: React.FC = () => {
     if (defaultClientEmail) {
       setAdminRecipientEmail(defaultClientEmail);
     }
-  }, [isClientUser, selectedTicket, adminRecipientType, adminRecipientEmail, clients]);
+  }, [isClientUser, selectedTicket, adminRecipientType, adminRecipientEmail, getDefaultClientEmail]);
 
   const fetchClients = async () => {
     try {
@@ -596,7 +596,7 @@ export const TicketsPage: React.FC = () => {
 
       if (canReadAsText) {
         const raw = await file.text();
-        const cleaned = raw.replace(/\u0000/g, '').trim();
+        const cleaned = raw.split('\0').join('').trim();
         const fromMatch = cleaned.match(/^From:\s*(.+)$/im);
         const toMatch = cleaned.match(/^To:\s*(.+)$/im);
         const subjectMatch = cleaned.match(/^Subject:\s*(.+)$/im);
