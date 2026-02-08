@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { listPOs, deletePO, approvePO, sendPO, PurchaseOrder } from '../api/purchaseOrder';
 import { CreatePOModal } from '../components/CreatePOModal';
+import { EditPOModal } from '../components/EditPOModal';
 import { ViewPOModal } from '../components/ViewPOModal';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -16,6 +17,7 @@ export const PurchaseOrdersPage: React.FC = () => {
   const [pos, setPOs] = useState<PurchaseOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editingPO, setEditingPO] = useState<PurchaseOrder | null>(null);
   const [viewingPO, setViewingPO] = useState<PurchaseOrder | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -108,43 +110,52 @@ export const PurchaseOrdersPage: React.FC = () => {
           </button>
         </div>
 
-        <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-3">
-          <div>
-            <label htmlFor="search" className="form-label">
-              Search
-            </label>
-            <input
-              type="text"
-              id="search"
-              className="form-input"
-              placeholder="Search by PO number..."
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setPage(1);
-              }}
-            />
-          </div>
-          <div>
-            <label htmlFor="status" className="form-label">
-              Status
-            </label>
-            <select
-              id="status"
-              className="form-select"
-              value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value);
-                setPage(1);
-              }}
-            >
-              <option value="">All Statuses</option>
-              <option value="draft">Draft</option>
-              <option value="sent">Sent</option>
-              <option value="approved">Approved</option>
-              <option value="completed">Completed</option>
-              <option value="cancelled">Cancelled</option>
-            </select>
+        <div className="mb-5 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div className="md:col-span-2">
+              <label htmlFor="search" className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+                Search
+              </label>
+              <div className="relative">
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35m1.85-5.15a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </span>
+                <input
+                  type="text"
+                  id="search"
+                  className="w-full rounded-lg border border-gray-300 bg-white pl-9 pr-3 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-success focus:outline-none focus:ring-2 focus:ring-success-light"
+                  placeholder="Search by PO number..."
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setPage(1);
+                  }}
+                />
+              </div>
+            </div>
+            <div>
+              <label htmlFor="status" className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+                Status
+              </label>
+              <select
+                id="status"
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 focus:border-success focus:outline-none focus:ring-2 focus:ring-success-light"
+                value={statusFilter}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setPage(1);
+                }}
+              >
+                <option value="">All Statuses</option>
+                <option value="draft">Draft</option>
+                <option value="sent">Sent</option>
+                <option value="approved">Approved</option>
+                <option value="completed">Completed</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -224,6 +235,14 @@ export const PurchaseOrdersPage: React.FC = () => {
                         >
                           View
                         </button>
+                        {(po.status === 'draft' || po.status === 'sent' || po.status === 'approved') && (
+                          <button
+                            onClick={() => setEditingPO(po)}
+                            className="text-indigo-600 hover:text-indigo-900 mr-3"
+                          >
+                            Edit
+                          </button>
+                        )}
                         {po.status === 'draft' && (
                           <>
                             <button
@@ -299,6 +318,17 @@ export const PurchaseOrdersPage: React.FC = () => {
         />
       )}
 
+      {editingPO && (
+        <EditPOModal
+          po={editingPO}
+          onClose={() => setEditingPO(null)}
+          onSuccess={() => {
+            setEditingPO(null);
+            fetchPOs();
+          }}
+        />
+      )}
+
       {viewingPO && (
         <ViewPOModal
           po={viewingPO}
@@ -308,3 +338,4 @@ export const PurchaseOrdersPage: React.FC = () => {
     </DashboardLayout>
   );
 };
+

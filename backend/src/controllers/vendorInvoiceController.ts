@@ -7,6 +7,8 @@ import { ApiResponse } from '../types';
 export const uploadVendorInvoiceValidation = [
   body('vendorId').trim().notEmpty().withMessage('Vendor ID is required'),
   body('clientId').optional({ checkFalsy: true }).trim(),
+  body('siteId').optional({ checkFalsy: true }).trim(),
+  body('poId').optional({ checkFalsy: true }).trim(),
 ];
 
 export const uploadVendorInvoice = async (
@@ -43,6 +45,8 @@ export const uploadVendorInvoice = async (
       orgId: req.user!.orgId,
       vendorId: req.body.vendorId,
       clientId: req.body.clientId,
+      siteId: req.body.siteId,
+      poId: req.body.poId,
       file: req.file,
     });
 
@@ -129,6 +133,8 @@ export const updateVendorInvoiceValidation = [
   body('fees').optional({ checkFalsy: true }).isFloat({ min: 0 }).withMessage('Fees must be a positive number'),
   body('total').optional({ checkFalsy: true }).isFloat({ min: 0 }).withMessage('Total must be a positive number'),
   body('status').optional({ checkFalsy: true }).isIn(['pending', 'under_review', 'approved', 'disputed', 'paid', 'rejected']).withMessage('Invalid status'),
+  body('paymentMethod').optional({ checkFalsy: true }).trim(),
+  body('paymentReference').optional({ checkFalsy: true }).trim(),
 ];
 
 export const updateVendorInvoice = async (
@@ -200,6 +206,50 @@ export const getVendorInvoicePdf = async (
     const response: ApiResponse = {
       success: true,
       data: { url: signedUrl },
+    };
+
+    return res.status(200).json(response);
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const markVendorInvoiceAsPaidValidation = [
+  body('paymentDate').isISO8601().withMessage('Valid payment date is required'),
+  body('paymentMethod').optional({ checkFalsy: true }).trim(),
+  body('paymentReference').optional({ checkFalsy: true }).trim(),
+];
+
+export const markVendorInvoiceAsPaid = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      const response: ApiResponse = {
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Validation failed',
+          details: errors.array(),
+        },
+      };
+      return res.status(400).json(response);
+    }
+
+    const invoice = await vendorInvoiceService.markAsPaid(
+      req.params.id as string,
+      req.user!.orgId,
+      req.body.paymentDate,
+      req.body.paymentMethod,
+      req.body.paymentReference
+    );
+
+    const response: ApiResponse = {
+      success: true,
+      data: { invoice },
     };
 
     return res.status(200).json(response);

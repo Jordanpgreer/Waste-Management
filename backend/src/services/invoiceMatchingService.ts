@@ -128,7 +128,7 @@ export class InvoiceMatchingService {
       } else {
         // If no PO specified, try to find linked PO
         const invoiceResult = await client.query(
-          'SELECT po_id, vendor_id FROM invoices WHERE id = $1 AND org_id = $2',
+          'SELECT po_id, vendor_id, client_id, site_id, invoice_date, total FROM invoices WHERE id = $1 AND org_id = $2',
           [input.vendor_invoice_id, orgId]
         );
 
@@ -152,10 +152,29 @@ export class InvoiceMatchingService {
           const poLineItemsResult = await client.query(
             `SELECT pli.* FROM po_line_items pli
              JOIN purchase_orders po ON pli.po_id = po.id
-             WHERE po.vendor_id = $1 AND po.org_id = $2 AND po.status = 'approved'
-             AND po.deleted_at IS NULL
-             ORDER BY po.po_date DESC, pli.line_number`,
-            [invoice.vendor_id, orgId]
+             WHERE po.vendor_id = $1
+               AND po.org_id = $2
+               AND po.service_scope = 'non_recurring'
+               AND po.status IN ('draft', 'sent', 'approved')
+               AND po.deleted_at IS NULL
+               AND ($3::uuid IS NULL OR po.site_id = $3::uuid)
+               AND ($4::uuid IS NULL OR po.client_id = $4::uuid)
+               AND (
+                 po.po_date BETWEEN ($5::date - INTERVAL '45 day') AND ($5::date + INTERVAL '45 day')
+                 OR (
+                   po.expected_delivery_date IS NOT NULL
+                   AND po.expected_delivery_date BETWEEN ($5::date - INTERVAL '45 day') AND ($5::date + INTERVAL '45 day')
+                 )
+               )
+             ORDER BY ABS(COALESCE(po.total, 0) - $6::numeric) ASC, po.po_date DESC, pli.line_number`,
+            [
+              invoice.vendor_id,
+              orgId,
+              invoice.site_id || null,
+              invoice.client_id || null,
+              invoice.invoice_date || new Date().toISOString().split('T')[0],
+              invoice.total || 0,
+            ]
           );
           poLineItems = poLineItemsResult.rows;
         }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { updateVendor, Vendor, CreateVendorInput } from '../api/vendor';
+import { updateVendor, Vendor, UpdateVendorInput } from '../api/vendor';
 
 interface EditVendorModalProps {
   vendor: Vendor;
@@ -26,7 +26,7 @@ const VENDOR_TYPES = [
 export const EditVendorModal: React.FC<EditVendorModalProps> = ({ vendor, onClose, onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [formData, setFormData] = useState<CreateVendorInput>({
+  const [formData, setFormData] = useState<UpdateVendorInput>({
     name: vendor.name,
     legalName: vendor.legal_name || '',
     vendorType: vendor.vendor_type || '',
@@ -130,7 +130,7 @@ export const EditVendorModal: React.FC<EditVendorModalProps> = ({ vendor, onClos
         .map((area) => area.trim())
         .filter((area) => area.length > 0);
 
-      const submitData: Partial<CreateVendorInput> = {
+      const submitData: UpdateVendorInput = {
         ...formData,
         coverageAreas: coverageAreas.length > 0 ? coverageAreas : undefined,
         // Convert empty strings to undefined
@@ -482,7 +482,7 @@ export const EditVendorModal: React.FC<EditVendorModalProps> = ({ vendor, onClos
                             formData.serviceCapabilities?.includes(capability.value) || false
                           }
                           onChange={() => handleServiceCapabilityToggle(capability.value)}
-                          className="w-4 h-4 text-primary-600 border-secondary-300 rounded focus:ring-primary-500"
+                          className="w-4 h-4 text-primary-600 border-secondary-300 rounded focus:ring-success"
                         />
                         <span className="text-sm text-secondary-700">{capability.label}</span>
                       </label>
@@ -589,3 +589,4 @@ export const EditVendorModal: React.FC<EditVendorModalProps> = ({ vendor, onClos
     </div>
   );
 };
+

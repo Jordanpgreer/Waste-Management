@@ -6,35 +6,35 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Waste Management Green Theme
+        // WasteFlow Blue + Green Theme
         primary: {
-          50: '#f0fdf4',   // lightest green
-          100: '#dcfce7',
-          200: '#bbf7d0',
-          300: '#86efac',
-          400: '#4ade80',
-          500: '#22c55e',  // main brand green
-          600: '#16a34a',  // darker green
-          700: '#15803d',
-          800: '#166534',
-          900: '#14532d',  // darkest green
+          50: '#eef7ff',
+          100: '#d9ecff',
+          200: '#b9dcff',
+          300: '#89c4ff',
+          400: '#58a9ff',
+          500: '#2d8cff',
+          600: '#0b4cad',
+          700: '#083f90',
+          800: '#093574',
+          900: '#0a2f5f',
         },
         secondary: {
-          50: '#f9fafb',
-          100: '#f3f4f6',
-          200: '#e5e7eb',
-          300: '#d1d5db',
-          400: '#9ca3af',
-          500: '#6b7280',
-          600: '#4b5563',
-          700: '#374151',
-          800: '#1f2937',
-          900: '#111827',
+          50: '#f4f7fa',
+          100: '#e8edf3',
+          200: '#d6dee8',
+          300: '#bcc8d6',
+          400: '#8fa1b6',
+          500: '#6f8197',
+          600: '#53657b',
+          700: '#3f5063',
+          800: '#293747',
+          900: '#162131',
         },
         success: {
-          light: '#86efac',
-          DEFAULT: '#22c55e',
-          dark: '#15803d',
+          light: '#a6f0bf',
+          DEFAULT: '#2bb35f',
+          dark: '#157f42',
         },
         warning: {
           light: '#fde047',
@@ -56,8 +56,8 @@ module.exports = {
         sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
       },
       boxShadow: {
-        'soft': '0 2px 15px -3px rgba(34, 197, 94, 0.1), 0 10px 20px -2px rgba(34, 197, 94, 0.05)',
-        'soft-lg': '0 10px 40px -10px rgba(34, 197, 94, 0.2)',
+        'soft': '0 2px 18px -4px rgba(11, 76, 173, 0.18), 0 10px 22px -6px rgba(21, 127, 66, 0.12)',
+        'soft-lg': '0 14px 42px -12px rgba(11, 76, 173, 0.24)',
       },
       animation: {
         'fade-in': 'fadeIn 0.3s ease-in-out',

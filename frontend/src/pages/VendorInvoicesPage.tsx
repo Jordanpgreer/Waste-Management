@@ -133,44 +133,43 @@ export const VendorInvoicesPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div>
-            <label htmlFor="search" className="form-label">
-              Search
-            </label>
-            <input
-              type="text"
-              id="search"
-              className="form-input"
-              placeholder="Search by invoice number or vendor..."
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setPage(1);
-              }}
-            />
-          </div>
-          <div>
-            <label htmlFor="status" className="form-label">
-              Status
-            </label>
-            <select
-              id="status"
-              className="form-select"
-              value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value);
-                setPage(1);
-              }}
-            >
-              <option value="">All Statuses</option>
-              <option value="pending">Pending</option>
-              <option value="under_review">Under Review</option>
-              <option value="approved">Approved</option>
-              <option value="disputed">Disputed</option>
-              <option value="paid">Paid</option>
-              <option value="rejected">Rejected</option>
-            </select>
+        <div className="mb-6 rounded-2xl border border-secondary-200 bg-white p-4 shadow-sm">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="relative">
+              <svg className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="m21 21-4.35-4.35m0 0A7.5 7.5 0 1 0 6 6a7.5 7.5 0 0 0 10.65 10.65Z" />
+              </svg>
+              <input
+                type="text"
+                id="search"
+                className="input pl-10"
+                placeholder="Search by invoice # or vendor..."
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setPage(1);
+                }}
+              />
+            </div>
+            <div>
+              <select
+                id="status"
+                className="input"
+                value={statusFilter}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setPage(1);
+                }}
+              >
+                <option value="">All Statuses</option>
+                <option value="pending">Pending</option>
+                <option value="under_review">Under Review</option>
+                <option value="approved">Approved</option>
+                <option value="disputed">Disputed</option>
+                <option value="paid">Paid</option>
+                <option value="rejected">Rejected</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -216,6 +215,9 @@ export const VendorInvoicesPage: React.FC = () => {
                       Vendor
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                      PO
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                       Date
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
@@ -248,6 +250,9 @@ export const VendorInvoicesPage: React.FC = () => {
                         {invoice.client_name && (
                           <div className="text-sm text-gray-500">for {invoice.client_name}</div>
                         )}
+                      </td>
+                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                        {invoice.po_number || 'Unlinked'}
                       </td>
                       <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
                         {new Date(invoice.created_at).toLocaleDateString()}

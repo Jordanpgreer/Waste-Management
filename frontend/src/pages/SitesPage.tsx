@@ -9,6 +9,7 @@ export const SitesPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingSite, setEditingSite] = useState<ClientSite | null>(null);
+  const [viewingSite, setViewingSite] = useState<ClientSite | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -101,10 +102,12 @@ export const SitesPage: React.FC = () => {
       try {
         await clientsApi.deleteSite(id);
         fetchSites();
+        return true;
       } catch (error) {
         console.error('Failed to delete site:', error);
       }
     }
+    return false;
   };
 
   const resetForm = () => {
@@ -232,7 +235,11 @@ export const SitesPage: React.FC = () => {
                 </thead>
                 <tbody className="bg-white divide-y divide-secondary-200">
                   {sites.map((site) => (
-                    <tr key={site.id} className="hover:bg-secondary-50 transition-colors">
+                    <tr
+                      key={site.id}
+                      className="hover:bg-secondary-50 transition-colors cursor-pointer"
+                      onClick={() => setViewingSite(site)}
+                    >
                       <td className="px-6 py-4">
                         <div className="flex items-center">
                           <div className="flex-shrink-0 h-10 w-10 bg-success-light/30 rounded-full flex items-center justify-center">
@@ -261,13 +268,19 @@ export const SitesPage: React.FC = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <button
-                          onClick={() => handleEdit(site)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEdit(site);
+                          }}
                           className="text-primary-600 hover:text-primary-900 mr-4 transition-colors"
                         >
                           Edit
                         </button>
                         <button
-                          onClick={() => handleDelete(site.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void handleDelete(site.id);
+                          }}
                           className="text-danger hover:text-danger-dark transition-colors"
                         >
                           Delete
@@ -393,7 +406,7 @@ export const SitesPage: React.FC = () => {
                           type="text"
                           name="city"
                           required
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-success focus:border-success"
                           value={formData.city}
                           onChange={handleChange}
                         />
@@ -407,7 +420,7 @@ export const SitesPage: React.FC = () => {
                           type="text"
                           name="state"
                           required
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-success focus:border-success"
                           value={formData.state}
                           onChange={handleChange}
                         />
@@ -421,7 +434,7 @@ export const SitesPage: React.FC = () => {
                           type="text"
                           name="zip"
                           required
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-success focus:border-success"
                           value={formData.zip}
                           onChange={handleChange}
                         />
@@ -434,7 +447,7 @@ export const SitesPage: React.FC = () => {
                         <input
                           type="text"
                           name="siteManagerName"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-success focus:border-success"
                           value={formData.siteManagerName}
                           onChange={handleChange}
                         />
@@ -447,7 +460,7 @@ export const SitesPage: React.FC = () => {
                         <input
                           type="tel"
                           name="siteManagerPhone"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-success focus:border-success"
                           value={formData.siteManagerPhone}
                           onChange={handleChange}
                         />
@@ -460,7 +473,7 @@ export const SitesPage: React.FC = () => {
                         <input
                           type="email"
                           name="siteManagerEmail"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-success focus:border-success"
                           value={formData.siteManagerEmail}
                           onChange={handleChange}
                         />
@@ -473,7 +486,7 @@ export const SitesPage: React.FC = () => {
                         <input
                           type="text"
                           name="operatingHours"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-success focus:border-success"
                           placeholder="e.g., Mon-Fri 8am-5pm"
                           value={formData.operatingHours}
                           onChange={handleChange}
@@ -487,7 +500,7 @@ export const SitesPage: React.FC = () => {
                         <textarea
                           name="accessInstructions"
                           rows={2}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-success focus:border-success"
                           placeholder="Gate codes, parking instructions, etc."
                           value={formData.accessInstructions}
                           onChange={handleChange}
@@ -501,7 +514,7 @@ export const SitesPage: React.FC = () => {
                         <textarea
                           name="specialInstructions"
                           rows={2}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-success focus:border-success"
                           value={formData.specialInstructions}
                           onChange={handleChange}
                         />
@@ -529,7 +542,109 @@ export const SitesPage: React.FC = () => {
             </div>
           </div>
         )}
+
+        {viewingSite && (
+          <div className="fixed z-50 inset-0 overflow-y-auto animate-fade-in">
+            <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+              <div
+                className="fixed inset-0 bg-secondary-900 bg-opacity-50 transition-opacity"
+                onClick={() => setViewingSite(null)}
+              ></div>
+
+              <div className="inline-block align-bottom bg-white rounded-xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-3xl sm:w-full animate-slide-up">
+                <div className="bg-white px-6 pt-6 pb-5">
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <h3 className="text-xl font-bold text-secondary-900">{viewingSite.name}</h3>
+                      <p className="text-sm text-secondary-500">{getClientName(viewingSite.client_id)}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setViewingSite(null)}
+                      className="text-secondary-400 hover:text-secondary-600 transition-colors"
+                    >
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="col-span-2">
+                      <p className="text-xs font-semibold text-secondary-500 uppercase">Address</p>
+                      <p className="text-sm text-secondary-900 mt-1">
+                        {viewingSite.address}, {viewingSite.city}, {viewingSite.state} {viewingSite.zip}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-secondary-500 uppercase">Country</p>
+                      <p className="text-sm text-secondary-900 mt-1">{viewingSite.country || '-'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-secondary-500 uppercase">Status</p>
+                      <p className="mt-1">
+                        <span className={viewingSite.is_active ? 'badge-success' : 'badge-danger'}>
+                          {viewingSite.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-secondary-500 uppercase">Site Manager</p>
+                      <p className="text-sm text-secondary-900 mt-1">{viewingSite.site_manager_name || '-'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-secondary-500 uppercase">Site Manager Phone</p>
+                      <p className="text-sm text-secondary-900 mt-1">{viewingSite.site_manager_phone || '-'}</p>
+                    </div>
+                    <div className="col-span-2">
+                      <p className="text-xs font-semibold text-secondary-500 uppercase">Site Manager Email</p>
+                      <p className="text-sm text-secondary-900 mt-1">{viewingSite.site_manager_email || '-'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-secondary-500 uppercase">Operating Hours</p>
+                      <p className="text-sm text-secondary-900 mt-1">{viewingSite.operating_hours || '-'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-secondary-500 uppercase">Access Instructions</p>
+                      <p className="text-sm text-secondary-900 mt-1 whitespace-pre-wrap">{viewingSite.access_instructions || '-'}</p>
+                    </div>
+                    <div className="col-span-2">
+                      <p className="text-xs font-semibold text-secondary-500 uppercase">Special Instructions</p>
+                      <p className="text-sm text-secondary-900 mt-1 whitespace-pre-wrap">{viewingSite.special_instructions || '-'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-secondary-50 px-6 py-4 flex justify-end space-x-3">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const deleted = await handleDelete(viewingSite.id);
+                      if (deleted) {
+                        setViewingSite(null);
+                      }
+                    }}
+                    className="btn-secondary text-danger border-danger hover:bg-danger/5"
+                  >
+                    Delete
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleEdit(viewingSite);
+                      setViewingSite(null);
+                    }}
+                    className="btn-primary"
+                  >
+                    Edit Site
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );
 };
+

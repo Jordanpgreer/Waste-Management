@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { uploadVendorInvoice } from '../api/vendorInvoice';
 import { listVendors, Vendor } from '../api/vendor';
+import { listPOs, PurchaseOrder } from '../api/purchaseOrder';
 import { clientsApi } from '../api/clients';
-import { Client } from '../types';
+import { Client, ClientSite } from '../types';
 
 interface UploadVendorInvoiceModalProps {
   onClose: () => void;
@@ -16,8 +17,12 @@ export const UploadVendorInvoiceModal: React.FC<UploadVendorInvoiceModalProps> =
 }) => {
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
+  const [sites, setSites] = useState<ClientSite[]>([]);
+  const [matchingPOs, setMatchingPOs] = useState<PurchaseOrder[]>([]);
   const [vendorId, setVendorId] = useState('');
   const [clientId, setClientId] = useState('');
+  const [siteId, setSiteId] = useState('');
+  const [poId, setPoId] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
@@ -26,6 +31,52 @@ export const UploadVendorInvoiceModal: React.FC<UploadVendorInvoiceModalProps> =
     fetchVendors();
     fetchClients();
   }, []);
+
+  useEffect(() => {
+    if (!clientId) {
+      setSites([]);
+      setSiteId('');
+      return;
+    }
+
+    const fetchSites = async () => {
+      try {
+        const response = await clientsApi.listSites({ clientId, limit: 200 });
+        setSites(response.items);
+      } catch (error) {
+        console.error('Failed to fetch sites:', error);
+        setSites([]);
+      }
+    };
+
+    fetchSites();
+  }, [clientId]);
+
+  useEffect(() => {
+    if (!vendorId || !siteId) {
+      setMatchingPOs([]);
+      setPoId('');
+      return;
+    }
+
+    const fetchPOs = async () => {
+      try {
+        const response = await listPOs({
+          vendor_id: vendorId,
+          client_id: clientId || undefined,
+          site_id: siteId,
+          status: 'approved',
+          limit: 50,
+        });
+        setMatchingPOs(response.items);
+      } catch (error) {
+        console.error('Failed to fetch matching POs:', error);
+        setMatchingPOs([]);
+      }
+    };
+
+    fetchPOs();
+  }, [vendorId, siteId, clientId]);
 
   const fetchVendors = async () => {
     try {
@@ -80,6 +131,8 @@ export const UploadVendorInvoiceModal: React.FC<UploadVendorInvoiceModalProps> =
       await uploadVendorInvoice({
         vendorId,
         clientId: clientId || undefined,
+        siteId: siteId || undefined,
+        poId: poId || undefined,
         file: selectedFile,
       });
       onSuccess();
@@ -168,6 +221,46 @@ export const UploadVendorInvoiceModal: React.FC<UploadVendorInvoiceModalProps> =
                     {clients.map((client) => (
                       <option key={client.id} value={client.id}>
                         {client.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label htmlFor="site" className="form-label">
+                    Client Site (Optional, recommended for PO auto-match)
+                  </label>
+                  <select
+                    id="site"
+                    className="form-select"
+                    value={siteId}
+                    onChange={(e) => setSiteId(e.target.value)}
+                    disabled={!clientId}
+                  >
+                    <option value="">Select site...</option>
+                    {sites.map((site) => (
+                      <option key={site.id} value={site.id}>
+                        {site.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label htmlFor="po" className="form-label">
+                    Purchase Order (Optional)
+                  </label>
+                  <select
+                    id="po"
+                    className="form-select"
+                    value={poId}
+                    onChange={(e) => setPoId(e.target.value)}
+                    disabled={!vendorId || !siteId}
+                  >
+                    <option value="">Auto-match by PO number/site/vendor</option>
+                    {matchingPOs.map((po) => (
+                      <option key={po.id} value={po.id}>
+                        {po.po_number} ({new Date(po.po_date).toLocaleDateString()})
                       </option>
                     ))}
                   </select>

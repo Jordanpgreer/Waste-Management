@@ -64,14 +64,17 @@ export enum TicketType {
 }
 
 export enum TicketStatus {
-  NEW = 'new',
-  TRIAGED = 'triaged',
-  VENDOR_ASSIGNED = 'vendor_assigned',
-  SCHEDULED = 'scheduled',
-  IN_PROGRESS = 'in_progress',
+  UNTOUCHED = 'untouched',
+  CLIENT_APPROVAL = 'client_approval',
+  VENDOR_RATES = 'vendor_rates',
+  QUOTED_TO_CLIENT = 'quoted_to_client',
+  RESPONSE_FROM_VENDOR = 'response_from_vendor',
+  RESPONSE_FROM_CLIENT = 'response_from_client',
   COMPLETED = 'completed',
-  VERIFIED = 'verified',
-  CLOSED = 'closed',
+  ETA_RECEIVED_FROM_VENDOR = 'eta_received_from_vendor',
+  ETA_PROVIDED_TO_CLIENT = 'eta_provided_to_client',
+  WAITING_ON_CLIENT_INFO = 'waiting_on_client_info',
+  WAITING_ON_VENDOR_INFO = 'waiting_on_vendor_info',
   CANCELLED = 'cancelled',
 }
 
@@ -125,6 +128,10 @@ export interface Client {
   billing_city?: string;
   billing_state?: string;
   billing_zip?: string;
+  assigned_vendor_id?: string;
+  contract_file_path?: string;
+  contract_file_name?: string;
+  contract_uploaded_at?: Date;
   account_manager_id?: string;
   sla_response_hours: number;
   sla_resolution_hours: number;
@@ -258,6 +265,8 @@ export interface Invoice {
   currency: string;
   status: InvoiceStatus;
   payment_date?: Date;
+  payment_method?: string;
+  payment_reference?: string;
   approved_by?: string;
   approved_at?: Date;
   notes?: string;

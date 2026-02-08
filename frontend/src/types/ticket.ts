@@ -14,14 +14,17 @@ export type TicketType =
   | 'other';
 
 export type TicketStatus =
-  | 'new'
-  | 'triaged'
-  | 'vendor_assigned'
-  | 'scheduled'
-  | 'in_progress'
+  | 'untouched'
+  | 'client_approval'
+  | 'vendor_rates'
+  | 'quoted_to_client'
+  | 'response_from_vendor'
+  | 'response_from_client'
   | 'completed'
-  | 'verified'
-  | 'closed'
+  | 'eta_received_from_vendor'
+  | 'eta_provided_to_client'
+  | 'waiting_on_client_info'
+  | 'waiting_on_vendor_info'
   | 'cancelled';
 
 export type TicketPriority = 'low' | 'medium' | 'high' | 'urgent';
@@ -72,16 +75,33 @@ export const TICKET_TYPE_LABELS: Record<TicketType, string> = {
 };
 
 export const TICKET_STATUS_LABELS: Record<TicketStatus, string> = {
-  new: 'New',
-  triaged: 'Triaged',
-  vendor_assigned: 'Vendor Assigned',
-  scheduled: 'Scheduled',
-  in_progress: 'In Progress',
+  untouched: 'Untouched',
+  client_approval: 'Client Approval',
+  vendor_rates: 'Vendor Rates',
+  quoted_to_client: 'Quoted to Client',
+  response_from_vendor: 'Response from Vendor',
+  response_from_client: 'Response from Client',
   completed: 'Completed',
-  verified: 'Verified',
-  closed: 'Closed',
+  eta_received_from_vendor: 'ETA Received from Vendor',
+  eta_provided_to_client: 'ETA Provided to Client',
+  waiting_on_client_info: 'Waiting on Client Info',
+  waiting_on_vendor_info: 'Waiting on Vendor Info',
   cancelled: 'Cancelled',
 };
+
+export const TICKET_STATUS_OPTIONS: TicketStatus[] = [
+  'untouched',
+  'client_approval',
+  'vendor_rates',
+  'quoted_to_client',
+  'response_from_vendor',
+  'response_from_client',
+  'completed',
+  'eta_received_from_vendor',
+  'eta_provided_to_client',
+  'waiting_on_client_info',
+  'waiting_on_vendor_info',
+];
 
 export const TICKET_PRIORITY_LABELS: Record<TicketPriority, string> = {
   low: 'Low',

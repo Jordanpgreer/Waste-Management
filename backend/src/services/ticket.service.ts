@@ -1,4 +1,6 @@
 import { Pool } from 'pg';
+import { promises as fs } from 'fs';
+import path from 'path';
 import {
   Ticket,
   CreateTicketInput,
@@ -7,6 +9,8 @@ import {
   ClassificationResult,
   TicketType,
   TicketPriority,
+  TicketMessageStatusTag,
+  TicketMessageRecipientType,
 } from '../types/ticket.types';
 
 export class TicketService {
@@ -14,6 +18,18 @@ export class TicketService {
 
   constructor(db: Pool) {
     this.db = db;
+  }
+
+  private normalizeMetadata(metadata: any): Record<string, any> {
+    if (!metadata) return {};
+    if (typeof metadata === 'string') {
+      try {
+        return JSON.parse(metadata);
+      } catch {
+        return {};
+      }
+    }
+    return metadata;
   }
 
   /**
@@ -110,20 +126,36 @@ export class TicketService {
    * Generate unique ticket number
    */
   private async generateTicketNumber(orgId: string): Promise<string> {
-    const year = new Date().getFullYear();
+    void orgId;
+    const startingNumber = 120;
     const result = await this.db.query(
-      'SELECT COUNT(*) as count FROM tickets WHERE org_id = $1 AND EXTRACT(YEAR FROM created_at) = $2',
-      [orgId, year]
+      `SELECT COALESCE(MAX(ticket_number::BIGINT), $1 - 1) AS max_ticket_number
+       FROM tickets
+       WHERE ticket_number ~ '^[0-9]+$'`,
+      [startingNumber]
     );
 
-    const count = parseInt(result.rows[0].count) + 1;
-    return `TKT-${year}-${count.toString().padStart(5, '0')}`;
+    const maxTicketNumber = Number(result.rows[0]?.max_ticket_number || startingNumber - 1);
+    return String(maxTicketNumber + 1);
   }
 
   /**
    * Create a new ticket with auto-classification
    */
-  async createTicket(orgId: string, input: CreateTicketInput): Promise<Ticket> {
+  async createTicket(orgId: string, input: CreateTicketInput, enforceClientDefaults: boolean = false): Promise<Ticket> {
+    if (input.site_id) {
+      const siteValidation = await this.db.query(
+        `SELECT id
+         FROM client_sites
+         WHERE id = $1 AND org_id = $2 AND client_id = $3 AND deleted_at IS NULL`,
+        [input.site_id, orgId, input.client_id]
+      );
+
+      if (siteValidation.rows.length === 0) {
+        throw new Error('Selected site is not valid for this client');
+      }
+    }
+
     // Auto-classify if type is not provided or is 'other'
     const shouldClassify = !input.ticket_type || input.ticket_type === 'other';
     let ticketType = input.ticket_type || 'other';
@@ -133,9 +165,10 @@ export class TicketService {
     if (shouldClassify) {
       const classification = await this.autoClassifyTicket(input.subject, input.description || '');
       ticketType = classification.ticket_type;
-      priority = classification.priority;
+      priority = enforceClientDefaults ? 'medium' : classification.priority;
       slaHours = classification.estimated_sla_hours || 72;
     } else {
+      priority = enforceClientDefaults ? 'medium' : (input.priority || 'medium');
       slaHours = this.calculateSLA(ticketType, priority);
     }
 
@@ -182,6 +215,223 @@ export class TicketService {
     return result.rows[0];
   }
 
+  async getDefaultSiteForClient(orgId: string, clientId: string): Promise<string | null> {
+    const result = await this.db.query(
+      `SELECT id
+       FROM client_sites
+       WHERE org_id = $1
+         AND client_id = $2
+         AND is_active = true
+         AND deleted_at IS NULL
+       ORDER BY created_at ASC
+       LIMIT 1`,
+      [orgId, clientId]
+    );
+
+    return result.rows[0]?.id || null;
+  }
+
+  async addTicketAttachment(
+    orgId: string,
+    ticketId: string,
+    file: Express.Multer.File,
+    uploadedBy: string | null
+  ): Promise<any> {
+    const safeName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const timestamp = Date.now();
+    const storedFilename = `${timestamp}-${safeName}`;
+    const uploadDir = path.join(process.cwd(), 'uploads', 'tickets', orgId, ticketId);
+    const fullPath = path.join(uploadDir, storedFilename);
+
+    await fs.mkdir(uploadDir, { recursive: true });
+    await fs.writeFile(fullPath, file.buffer);
+
+    const relativePath = path.relative(process.cwd(), fullPath).replace(/\\/g, '/');
+
+    const result = await this.db.query(
+      `INSERT INTO ticket_attachments (org_id, ticket_id, file_name, file_path, file_size, file_type, uploaded_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING *`,
+      [orgId, ticketId, file.originalname, relativePath, file.size, file.mimetype, uploadedBy]
+    );
+
+    return result.rows[0];
+  }
+
+  async storeTicketMessageSourceFile(
+    orgId: string,
+    ticketId: string,
+    file: Express.Multer.File
+  ): Promise<{
+    source_file_name: string;
+    source_file_path: string;
+    source_file_size: number;
+    source_file_type: string;
+  }> {
+    const safeName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const timestamp = Date.now();
+    const storedFilename = `${timestamp}-${safeName}`;
+    const uploadDir = path.join(process.cwd(), 'uploads', 'ticket-messages', orgId, ticketId);
+    const fullPath = path.join(uploadDir, storedFilename);
+
+    await fs.mkdir(uploadDir, { recursive: true });
+    await fs.writeFile(fullPath, file.buffer);
+
+    const relativePath = path.relative(process.cwd(), fullPath).replace(/\\/g, '/');
+
+    return {
+      source_file_name: file.originalname,
+      source_file_path: relativePath,
+      source_file_size: file.size,
+      source_file_type: file.mimetype || 'application/octet-stream',
+    };
+  }
+
+  async requestTicketCancellation(
+    ticketId: string,
+    orgId: string,
+    requestedBy: string,
+    reason: string
+  ): Promise<Ticket> {
+    const existing = await this.getTicket(ticketId, orgId);
+    if (!existing) {
+      throw new Error('Ticket not found');
+    }
+
+    if (existing.status === 'cancelled') {
+      throw new Error('Ticket is already cancelled');
+    }
+
+    const metadata = this.normalizeMetadata(existing.metadata);
+    if (metadata?.cancellation_request?.status === 'pending') {
+      throw new Error('A cancellation request is already pending');
+    }
+
+    metadata.cancellation_request = {
+      status: 'pending',
+      reason,
+      requested_by: requestedBy,
+      requested_at: new Date().toISOString(),
+      prior_status: existing.status,
+    };
+
+    const updated = await this.db.query(
+      `UPDATE tickets
+       SET metadata = $1, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $2 AND org_id = $3 AND deleted_at IS NULL
+       RETURNING *`,
+      [JSON.stringify(metadata), ticketId, orgId]
+    );
+
+    await this.addTicketMessage(
+      ticketId,
+      orgId,
+      requestedBy,
+      `Cancellation requested by client.\nReason: ${reason}`,
+      false
+    );
+
+    return updated.rows[0];
+  }
+
+  async approveTicketCancellation(
+    ticketId: string,
+    orgId: string,
+    approvedBy: string
+  ): Promise<Ticket> {
+    const existing = await this.getTicket(ticketId, orgId);
+    if (!existing) {
+      throw new Error('Ticket not found');
+    }
+
+    const metadata = this.normalizeMetadata(existing.metadata);
+    if (metadata?.cancellation_request?.status !== 'pending') {
+      throw new Error('No pending cancellation request found');
+    }
+
+    metadata.cancellation_request = {
+      ...metadata.cancellation_request,
+      status: 'approved',
+      decision_by: approvedBy,
+      decision_at: new Date().toISOString(),
+    };
+
+    const updated = await this.db.query(
+      `UPDATE tickets
+       SET status = 'cancelled',
+           closed_at = CURRENT_TIMESTAMP,
+           metadata = $1,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $2 AND org_id = $3 AND deleted_at IS NULL
+       RETURNING *`,
+      [JSON.stringify(metadata), ticketId, orgId]
+    );
+
+    await this.addTicketMessage(
+      ticketId,
+      orgId,
+      approvedBy,
+      'Cancellation request approved. Ticket is now cancelled.',
+      false
+    );
+
+    return updated.rows[0];
+  }
+
+  async rejectTicketCancellation(
+    ticketId: string,
+    orgId: string,
+    rejectedBy: string,
+    reason: string
+  ): Promise<Ticket> {
+    const existing = await this.getTicket(ticketId, orgId);
+    if (!existing) {
+      throw new Error('Ticket not found');
+    }
+
+    const metadata = this.normalizeMetadata(existing.metadata);
+    if (metadata?.cancellation_request?.status !== 'pending') {
+      throw new Error('No pending cancellation request found');
+    }
+
+    metadata.cancellation_request = {
+      ...metadata.cancellation_request,
+      status: 'rejected',
+      decision_by: rejectedBy,
+      decision_at: new Date().toISOString(),
+      decision_reason: reason,
+    };
+
+    const updated = await this.db.query(
+      `UPDATE tickets
+       SET metadata = $1,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $2 AND org_id = $3 AND deleted_at IS NULL
+       RETURNING *`,
+      [JSON.stringify(metadata), ticketId, orgId]
+    );
+
+    await this.addTicketMessage(
+      ticketId,
+      orgId,
+      rejectedBy,
+      `Cancellation request was not approved.\nReason: ${reason}`,
+      false
+    );
+
+    return updated.rows[0];
+  }
+
+  async getTicketAttachments(ticketId: string, orgId: string): Promise<any[]> {
+    const result = await this.db.query(
+      `SELECT * FROM ticket_attachments
+       WHERE ticket_id = $1 AND org_id = $2
+       ORDER BY created_at DESC`,
+      [ticketId, orgId]
+    );
+    return result.rows;
+  }
+
   /**
    * Auto-assign vendor based on rules (simplified version)
    */
@@ -199,7 +449,7 @@ export class TicketService {
    * Create auto-acknowledgement message
    */
   private async createAutoAcknowledgement(ticketId: string, orgId: string, ticketNumber: string): Promise<void> {
-    const message = `Thank you for submitting your request. Your ticket ${ticketNumber} has been received and is being processed. We'll update you on the progress shortly.`;
+    const message = `Thank you for submitting your request. Your Request #${ticketNumber} has been received and is being processed. We'll update you on the progress shortly.`;
 
     await this.db.query(
       `INSERT INTO ticket_messages (org_id, ticket_id, message, is_internal, is_auto_generated)
@@ -243,6 +493,16 @@ export class TicketService {
       params.push(filters.status);
     }
 
+    if (filters.status_bucket) {
+      if (filters.status_bucket === 'open') {
+        whereConditions.push(`t.status NOT IN ('completed', 'cancelled')`);
+      } else if (filters.status_bucket === 'completed') {
+        whereConditions.push(`t.status = 'completed'`);
+      } else if (filters.status_bucket === 'cancelled') {
+        whereConditions.push(`t.status = 'cancelled'`);
+      }
+    }
+
     if (filters.priority) {
       whereConditions.push(`t.priority = $${paramIndex++}`);
       params.push(filters.priority);
@@ -263,17 +523,45 @@ export class TicketService {
       params.push(filters.is_escalated);
     }
 
+    if (filters.cancellation_status) {
+      whereConditions.push(`t.metadata->'cancellation_request'->>'status' = $${paramIndex++}`);
+      params.push(filters.cancellation_status);
+    }
+
     if (filters.search) {
-      whereConditions.push(`(t.subject ILIKE $${paramIndex} OR t.description ILIKE $${paramIndex} OR t.ticket_number ILIKE $${paramIndex})`);
+      whereConditions.push(
+        `(t.subject ILIKE $${paramIndex} OR t.description ILIKE $${paramIndex} OR t.ticket_number ILIKE $${paramIndex} OR c.name ILIKE $${paramIndex} OR cs.name ILIKE $${paramIndex})`
+      );
       params.push(`%${filters.search}%`);
       paramIndex++;
     }
 
     const whereClause = whereConditions.join(' AND ');
+    const sortBy = filters.sort_by || 'newest';
+    const orderByClause =
+      sortBy === 'oldest'
+        ? 't.created_at ASC'
+        : sortBy === 'last_touched_oldest'
+          ? `COALESCE(
+               (SELECT MAX(tm.created_at) FROM ticket_messages tm WHERE tm.ticket_id = t.id AND tm.org_id = t.org_id),
+               t.updated_at,
+               t.created_at
+             ) ASC`
+        : sortBy === 'last_touched'
+          ? `COALESCE(
+               (SELECT MAX(tm.created_at) FROM ticket_messages tm WHERE tm.ticket_id = t.id AND tm.org_id = t.org_id),
+               t.updated_at,
+               t.created_at
+             ) DESC`
+          : 't.created_at DESC';
 
     // Get total count
     const countResult = await this.db.query(
-      `SELECT COUNT(*) as total FROM tickets t WHERE ${whereClause}`,
+      `SELECT COUNT(*) as total
+       FROM tickets t
+       LEFT JOIN clients c ON c.id = t.client_id
+       LEFT JOIN client_sites cs ON cs.id = t.site_id
+       WHERE ${whereClause}`,
       params
     );
     const total = parseInt(countResult.rows[0].total);
@@ -281,8 +569,10 @@ export class TicketService {
     // Get paginated results
     const result = await this.db.query(
       `SELECT t.* FROM tickets t
+       LEFT JOIN clients c ON c.id = t.client_id
+       LEFT JOIN client_sites cs ON cs.id = t.site_id
        WHERE ${whereClause}
-       ORDER BY t.created_at DESC
+       ORDER BY ${orderByClause}
        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
       [...params, limit, offset]
     );
@@ -326,9 +616,6 @@ export class TicketService {
       // Auto-set completion timestamps based on status
       if (input.status === 'completed') {
         updates.push(`completed_at = CURRENT_TIMESTAMP`);
-      } else if (input.status === 'verified') {
-        updates.push(`verified_at = CURRENT_TIMESTAMP`);
-      } else if (input.status === 'closed') {
         updates.push(`closed_at = CURRENT_TIMESTAMP`);
       }
     }
@@ -358,7 +645,7 @@ export class TicketService {
       params.push(input.vendor_id);
 
       if (input.vendor_id && !input.status) {
-        updates.push(`status = 'vendor_assigned'`);
+        updates.push(`status = 'vendor_rates'`);
       }
     }
 
@@ -367,7 +654,7 @@ export class TicketService {
       params.push(input.scheduled_at);
 
       if (!input.status) {
-        updates.push(`status = 'scheduled'`);
+        updates.push(`status = 'eta_received_from_vendor'`);
       }
     }
 
@@ -404,7 +691,14 @@ export class TicketService {
    */
   async getTicketMessages(ticketId: string, orgId: string): Promise<any[]> {
     const result = await this.db.query(
-      `SELECT tm.*, u.first_name, u.last_name
+      `SELECT
+         tm.*,
+         u.first_name,
+         u.last_name,
+         CASE
+           WHEN ROW_NUMBER() OVER (ORDER BY tm.created_at ASC, tm.id ASC) = 1 THEN true
+           ELSE false
+         END AS is_origin_message
        FROM ticket_messages tm
        LEFT JOIN users u ON tm.user_id = u.id
        WHERE tm.ticket_id = $1 AND tm.org_id = $2
@@ -423,16 +717,87 @@ export class TicketService {
     orgId: string,
     userId: string | null,
     message: string,
-    isInternal: boolean = false
+    isInternal: boolean = false,
+    statusTag?: TicketMessageStatusTag | null,
+    metadata?: {
+      recipient_type?: TicketMessageRecipientType | null;
+      recipient_email?: string | null;
+      email_from?: string | null;
+      email_to?: string | null;
+      email_subject?: string | null;
+      source_file_name?: string | null;
+      source_file_path?: string | null;
+      source_file_size?: number | null;
+      source_file_type?: string | null;
+    }
   ): Promise<any> {
     const result = await this.db.query(
-      `INSERT INTO ticket_messages (org_id, ticket_id, user_id, message, is_internal)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO ticket_messages (
+         org_id,
+         ticket_id,
+         user_id,
+         message,
+         status_tag,
+         recipient_type,
+         recipient_email,
+         email_from,
+         email_to,
+         email_subject,
+         source_file_name,
+         source_file_path,
+         source_file_size,
+         source_file_type,
+         is_internal
+       )
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
        RETURNING *`,
-      [orgId, ticketId, userId, message, isInternal]
+      [
+        orgId,
+        ticketId,
+        userId,
+        message,
+        statusTag || null,
+        metadata?.recipient_type || 'client',
+        metadata?.recipient_email || null,
+        metadata?.email_from || null,
+        metadata?.email_to || null,
+        metadata?.email_subject || null,
+        metadata?.source_file_name || null,
+        metadata?.source_file_path || null,
+        metadata?.source_file_size || null,
+        metadata?.source_file_type || null,
+        isInternal,
+      ]
     );
 
     return result.rows[0];
+  }
+
+  async updateTicketMessageStatus(
+    messageId: string,
+    ticketId: string,
+    orgId: string,
+    statusTag: TicketMessageStatusTag | null
+  ): Promise<any | null> {
+    const result = await this.db.query(
+      `UPDATE ticket_messages
+       SET status_tag = $1
+       WHERE id = $2 AND ticket_id = $3 AND org_id = $4
+       RETURNING *`,
+      [statusTag, messageId, ticketId, orgId]
+    );
+
+    return result.rows[0] || null;
+  }
+
+  async deleteTicketMessage(messageId: string, ticketId: string, orgId: string): Promise<boolean> {
+    const result = await this.db.query(
+      `DELETE FROM ticket_messages
+       WHERE id = $1 AND ticket_id = $2 AND org_id = $3`,
+      [messageId, ticketId, orgId]
+    );
+
+    return (result.rowCount || 0) > 0;
   }
 
   /**
@@ -443,7 +808,7 @@ export class TicketService {
       `UPDATE tickets
        SET is_escalated = true, escalated_at = CURRENT_TIMESTAMP
        WHERE org_id = $1
-         AND status NOT IN ('completed', 'verified', 'closed', 'cancelled')
+         AND status NOT IN ('completed', 'cancelled')
          AND sla_due_at < CURRENT_TIMESTAMP
          AND is_escalated = false
        RETURNING id`,

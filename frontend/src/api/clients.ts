@@ -12,6 +12,7 @@ export interface CreateClientInput {
   billingCity?: string;
   billingState?: string;
   billingZip?: string;
+  assignedVendorId?: string;
   accountManagerId?: string;
   slaResponseHours?: number;
   slaResolutionHours?: number;
@@ -33,6 +34,28 @@ export interface CreateSiteInput {
   gateCode?: string;
   operatingHours?: string;
   specialInstructions?: string;
+}
+
+export interface ServiceScheduleItem {
+  id: string;
+  site_id: string;
+  site_name: string;
+  site_city: string;
+  site_state: string;
+  service_type: string;
+  frequency: string;
+  day_of_week: number | null;
+  container_size?: string;
+  container_type?: string;
+  container_count: number;
+  start_date?: string;
+  end_date?: string;
+}
+
+export interface ClientContractDownload {
+  url: string;
+  file_name?: string;
+  uploaded_at?: string;
 }
 
 export const clientsApi = {
@@ -60,6 +83,18 @@ export const clientsApi = {
     return response.data!.client;
   },
 
+  async uploadClientContract(id: string, file: File): Promise<Client> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await apiClient.postMultipart<{ client: Client }>(`/clients/${id}/contract`, formData);
+    return response.data!.client;
+  },
+
+  async getClientContractDownload(id: string): Promise<ClientContractDownload> {
+    const response = await apiClient.get<ClientContractDownload>(`/clients/${id}/contract`);
+    return response.data!;
+  },
+
   async deleteClient(id: string): Promise<void> {
     await apiClient.delete(`/clients/${id}`);
   },
@@ -72,6 +107,11 @@ export const clientsApi = {
   }): Promise<PaginatedResponse<ClientSite>> {
     const response = await apiClient.get<PaginatedResponse<ClientSite>>('/clients/sites', params);
     return response.data!;
+  },
+
+  async listServiceSchedule(): Promise<ServiceScheduleItem[]> {
+    const response = await apiClient.get<{ items: ServiceScheduleItem[] }>('/clients/service-schedule');
+    return response.data?.items || [];
   },
 
   async getSite(id: string): Promise<ClientSite> {

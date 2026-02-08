@@ -12,6 +12,59 @@ import {
 import { AppError } from '../middleware/errorHandler';
 
 export class PurchaseOrderService {
+  private normalizeServiceScope(scope?: string): 'non_recurring' | 'recurring' {
+    if (scope === 'recurring') {
+      return 'recurring';
+    }
+    return 'non_recurring';
+  }
+
+  private mapPricingLineItem(item: {
+    quantity: number;
+    unit_price?: number;
+    vendor_unit_price?: number | null;
+    client_unit_price?: number | null;
+  }) {
+    const qty = Number(item.quantity || 0);
+    const vendorUnitPrice =
+      item.vendor_unit_price !== undefined && item.vendor_unit_price !== null
+        ? Number(item.vendor_unit_price)
+        : item.unit_price !== undefined
+        ? Number(item.unit_price)
+        : null;
+    const clientUnitPrice =
+      item.client_unit_price !== undefined && item.client_unit_price !== null
+        ? Number(item.client_unit_price)
+        : item.unit_price !== undefined
+        ? Number(item.unit_price)
+        : null;
+
+    const vendorAmount = vendorUnitPrice !== null ? qty * vendorUnitPrice : null;
+    const clientAmount = clientUnitPrice !== null ? qty * clientUnitPrice : null;
+    const unitPrice = vendorUnitPrice ?? clientUnitPrice;
+    const amount = vendorAmount ?? clientAmount;
+
+    return {
+      quantity: qty,
+      unitPrice,
+      amount,
+      vendorUnitPrice,
+      clientUnitPrice,
+      vendorAmount,
+      clientAmount,
+    };
+  }
+
+  private deriveHeaderTotals(
+    lineItems: Array<{ vendorAmount: number | null; clientAmount: number | null }>
+  ): { subtotal: number; tax: number; total: number } {
+    const vendorSubtotal = lineItems.reduce((sum, item) => sum + (item.vendorAmount || 0), 0);
+    const clientSubtotal = lineItems.reduce((sum, item) => sum + (item.clientAmount || 0), 0);
+    const subtotal = clientSubtotal > 0 ? clientSubtotal : vendorSubtotal;
+    const tax = 0;
+    const total = subtotal + tax;
+    return { subtotal, tax, total };
+  }
   /**
    * Generate a unique PO number in format: PO-YYYY-#####
    */
@@ -50,21 +103,25 @@ export class PurchaseOrderService {
       await client.query('BEGIN');
 
       const poNumber = await this.generatePONumber(orgId);
+      const serviceScope = this.normalizeServiceScope(input.service_scope);
 
-      // Calculate totals from line items
-      const subtotal = input.line_items.reduce((sum, item) => {
-        return sum + item.quantity * item.unit_price;
-      }, 0);
+      if (serviceScope === 'recurring') {
+        throw new AppError(
+          'Recurring services should not use purchase orders. Create POs only for non-recurring work.',
+          400,
+          'PO_RECURRING_NOT_ALLOWED'
+        );
+      }
 
-      const tax = 0; // Tax can be added later
-      const total = subtotal + tax;
+      const mappedItems = input.line_items.map((item) => this.mapPricingLineItem(item));
+      const { subtotal, tax, total } = this.deriveHeaderTotals(mappedItems);
 
       // Insert PO header
       const poResult = await client.query(
         `INSERT INTO purchase_orders (
-          org_id, po_number, client_id, vendor_id, site_id, po_date,
+          org_id, po_number, client_id, vendor_id, site_id, service_scope, po_date,
           expected_delivery_date, subtotal, tax, total, terms, notes, created_by
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
         RETURNING *`,
         [
           orgId,
@@ -72,6 +129,7 @@ export class PurchaseOrderService {
           input.client_id,
           input.vendor_id,
           input.site_id,
+          serviceScope,
           input.po_date,
           input.expected_delivery_date,
           subtotal,
@@ -89,13 +147,13 @@ export class PurchaseOrderService {
       const lineItems: POLineItem[] = [];
       for (let i = 0; i < input.line_items.length; i++) {
         const item = input.line_items[i];
-        const amount = item.quantity * item.unit_price;
+        const mapped = mappedItems[i];
 
         const lineItemResult = await client.query(
           `INSERT INTO po_line_items (
             org_id, po_id, line_number, description, service_type,
-            quantity, unit_price, amount, notes
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            quantity, unit_price, amount, vendor_unit_price, client_unit_price, vendor_amount, client_amount, notes
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
           RETURNING *`,
           [
             orgId,
@@ -103,9 +161,13 @@ export class PurchaseOrderService {
             i + 1,
             item.description,
             item.service_type,
-            item.quantity,
-            item.unit_price,
-            amount,
+            mapped.quantity,
+            mapped.unitPrice,
+            mapped.amount,
+            mapped.vendorUnitPrice,
+            mapped.clientUnitPrice,
+            mapped.vendorAmount,
+            mapped.clientAmount,
             item.notes,
           ]
         );
@@ -164,6 +226,7 @@ export class PurchaseOrderService {
       status?: string;
       client_id?: string;
       vendor_id?: string;
+      site_id?: string;
     }
   ): Promise<PaginatedResponse<PurchaseOrder>> {
     const page = params.page || 1;
@@ -211,6 +274,12 @@ export class PurchaseOrderService {
       paramIndex++;
     }
 
+    if (params.site_id) {
+      whereClause += ` AND site_id = $${paramIndex}`;
+      queryParams.push(params.site_id);
+      paramIndex++;
+    }
+
     const countResult = await pool.query(
       `SELECT COUNT(*) as total FROM purchase_orders ${whereClause}`,
       queryParams
@@ -248,11 +317,11 @@ export class PurchaseOrderService {
         throw new AppError('Purchase order not found', 404, 'PO_NOT_FOUND');
       }
 
-      if (existing.status !== 'draft') {
+      if (existing.status === 'cancelled' || existing.status === 'completed') {
         throw new AppError(
-          'Can only update purchase orders in draft status',
+          'Cannot update cancelled or completed purchase orders',
           400,
-          'PO_NOT_DRAFT'
+          'PO_LOCKED'
         );
       }
 
@@ -293,13 +362,8 @@ export class PurchaseOrderService {
           [id, orgId]
         );
 
-        // Calculate new totals
-        const subtotal = line_items.reduce((sum, item) => {
-          return sum + item.quantity * item.unit_price;
-        }, 0);
-
-        const tax = 0;
-        const total = subtotal + tax;
+        const mappedItems = line_items.map((item) => this.mapPricingLineItem(item));
+        const { subtotal, tax, total } = this.deriveHeaderTotals(mappedItems);
 
         // Update PO totals
         await client.query(
@@ -312,22 +376,26 @@ export class PurchaseOrderService {
         // Insert new line items
         for (let i = 0; i < line_items.length; i++) {
           const item = line_items[i];
-          const amount = item.quantity * item.unit_price;
+          const mapped = mappedItems[i];
 
           await client.query(
             `INSERT INTO po_line_items (
               org_id, po_id, line_number, description, service_type,
-              quantity, unit_price, amount, notes
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+              quantity, unit_price, amount, vendor_unit_price, client_unit_price, vendor_amount, client_amount, notes
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
             [
               orgId,
               id,
               i + 1,
               item.description,
               item.service_type,
-              item.quantity,
-              item.unit_price,
-              amount,
+              mapped.quantity,
+              mapped.unitPrice,
+              mapped.amount,
+              mapped.vendorUnitPrice,
+              mapped.clientUnitPrice,
+              mapped.vendorAmount,
+              mapped.clientAmount,
               item.notes,
             ]
           );

@@ -4,10 +4,13 @@ import {
   getClient,
   listClients,
   updateClient,
+  uploadClientContract,
+  getClientContractDownload,
   deleteClient,
   createSite,
   getSite,
   listSites,
+  listServiceSchedule,
   updateSite,
   deleteSite,
   createClientValidation,
@@ -15,6 +18,7 @@ import {
 } from '../controllers/clientController';
 import { authenticate, authorize } from '../middleware/auth';
 import { UserRole } from '../types';
+import { uploadSinglePDF } from '../middleware/fileUpload';
 
 const router = Router();
 
@@ -28,6 +32,7 @@ router.post(
   createSite
 );
 router.get('/sites', listSites);
+router.get('/service-schedule', listServiceSchedule);
 router.get('/sites/:id', getSite);
 router.put(
   '/sites/:id',
@@ -48,6 +53,13 @@ router.post(
   createClient
 );
 router.get('/', listClients);
+router.post(
+  '/:id/contract',
+  authorize(UserRole.ADMIN, UserRole.ACCOUNT_MANAGER, UserRole.BROKER_OPS_AGENT),
+  uploadSinglePDF,
+  uploadClientContract
+);
+router.get('/:id/contract', getClientContractDownload);
 router.get('/:id', getClient);
 router.put(
   '/:id',

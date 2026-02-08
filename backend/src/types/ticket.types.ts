@@ -15,15 +15,21 @@ export type TicketType =
   | 'other';
 
 export type TicketStatus =
-  | 'new'
-  | 'triaged'
-  | 'vendor_assigned'
-  | 'scheduled'
-  | 'in_progress'
+  | 'untouched'
+  | 'client_approval'
+  | 'vendor_rates'
+  | 'quoted_to_client'
+  | 'response_from_vendor'
+  | 'response_from_client'
   | 'completed'
-  | 'verified'
-  | 'closed'
+  | 'eta_received_from_vendor'
+  | 'eta_provided_to_client'
+  | 'waiting_on_client_info'
+  | 'waiting_on_vendor_info'
   | 'cancelled';
+
+export type TicketMessageStatusTag = Exclude<TicketStatus, 'cancelled'>;
+export type TicketMessageRecipientType = 'client' | 'vendor' | 'other';
 
 export type TicketPriority = 'low' | 'medium' | 'high' | 'urgent';
 
@@ -62,6 +68,17 @@ export interface TicketMessage {
   ticket_id: string;
   user_id: string | null;
   message: string;
+  status_tag: TicketMessageStatusTag | null;
+  is_origin_message?: boolean;
+  recipient_type?: TicketMessageRecipientType | null;
+  recipient_email?: string | null;
+  email_from?: string | null;
+  email_to?: string | null;
+  email_subject?: string | null;
+  source_file_name?: string | null;
+  source_file_path?: string | null;
+  source_file_size?: number | null;
+  source_file_type?: string | null;
   is_internal: boolean;
   is_auto_generated: boolean;
   created_at: Date;
@@ -107,10 +124,13 @@ export interface TicketFilters {
   site_id?: string;
   ticket_type?: TicketType;
   status?: TicketStatus;
+  status_bucket?: 'open' | 'completed' | 'cancelled';
+  sort_by?: 'newest' | 'oldest' | 'last_touched' | 'last_touched_oldest';
   priority?: TicketPriority;
   assignee_id?: string;
   vendor_id?: string;
   is_escalated?: boolean;
+  cancellation_status?: 'pending' | 'approved' | 'rejected';
   search?: string;
 }
 

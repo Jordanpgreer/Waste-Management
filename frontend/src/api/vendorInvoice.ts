@@ -21,6 +21,10 @@ export interface VendorInvoice {
   currency: string;
   status: 'pending' | 'under_review' | 'approved' | 'disputed' | 'paid' | 'rejected';
   payment_date?: string;
+  payment_method?: string;
+  payment_reference?: string;
+  po_id?: string;
+  po_number?: string;
   approved_by?: string;
   approved_at?: string;
   notes?: string;
@@ -59,6 +63,8 @@ export interface VendorInvoice {
 export interface UploadVendorInvoiceParams {
   vendorId: string;
   clientId?: string;
+  siteId?: string;
+  poId?: string;
   file: File;
 }
 
@@ -83,6 +89,14 @@ export interface UpdateVendorInvoiceParams {
   total?: number;
   status?: string;
   notes?: string;
+  paymentMethod?: string;
+  paymentReference?: string;
+}
+
+export interface MarkVendorInvoicePaidParams {
+  paymentDate: string;
+  paymentMethod?: string;
+  paymentReference?: string;
 }
 
 export const uploadVendorInvoice = async (
@@ -92,6 +106,12 @@ export const uploadVendorInvoice = async (
   formData.append('vendorId', params.vendorId);
   if (params.clientId) {
     formData.append('clientId', params.clientId);
+  }
+  if (params.siteId) {
+    formData.append('siteId', params.siteId);
+  }
+  if (params.poId) {
+    formData.append('poId', params.poId);
   }
   formData.append('file', params.file);
 
@@ -168,4 +188,20 @@ export const getVendorInvoicePdfUrl = async (id: string): Promise<string> => {
   }
 
   return response.data.url;
+};
+
+export const markVendorInvoiceAsPaid = async (
+  id: string,
+  params: MarkVendorInvoicePaidParams
+): Promise<VendorInvoice> => {
+  const response = await apiClient.post<{ invoice: VendorInvoice }>(
+    `/vendor-invoices/${id}/mark-paid`,
+    params
+  );
+
+  if (!response.success || !response.data) {
+    throw new Error(response.error?.message || 'Failed to mark invoice as paid');
+  }
+
+  return response.data.invoice;
 };

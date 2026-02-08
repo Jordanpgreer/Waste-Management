@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -29,11 +29,11 @@
   }
 
   .btn-primary {
-    @apply btn bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500 shadow-sm hover:shadow;
+    @apply btn bg-success text-white hover:bg-success-dark focus:ring-success shadow-sm hover:shadow;
   }
 
   .btn-secondary {
-    @apply btn bg-white text-secondary-700 border border-secondary-300 hover:bg-secondary-50 focus:ring-primary-500;
+    @apply btn bg-white text-secondary-700 border border-secondary-300 hover:bg-secondary-50 focus:ring-success;
   }
 
   .btn-danger {
@@ -44,9 +44,15 @@
     @apply btn bg-success text-white hover:bg-success-dark focus:ring-success;
   }
 
+  .brand-wordmark {
+    font-family: 'Playfair Display', Georgia, serif;
+    @apply text-lg font-bold leading-none text-secondary-900;
+    letter-spacing: 0.02em;
+  }
+
   /* Input Styles */
   .input {
-    @apply w-full px-4 py-2.5 border border-secondary-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200 bg-white;
+    @apply w-full px-4 py-2.5 border border-secondary-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-success focus:border-transparent transition-all duration-200 bg-white;
   }
 
   .input-error {
@@ -115,3 +121,4 @@
     display: none;
   }
 }
+

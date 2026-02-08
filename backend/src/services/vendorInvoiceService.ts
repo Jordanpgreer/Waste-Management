@@ -32,10 +32,125 @@ export interface UploadVendorInvoiceInput {
   orgId: string;
   vendorId: string;
   clientId?: string;
+  siteId?: string;
+  poId?: string;
   file: Express.Multer.File;
 }
 
 export class VendorInvoiceService {
+  private async canJoinPurchaseOrders(): Promise<boolean> {
+    try {
+      const [tableResult, columnResult] = await Promise.all([
+        pool.query(`SELECT to_regclass('public.purchase_orders') AS table_ref`),
+        pool.query(
+          `SELECT 1
+           FROM information_schema.columns
+           WHERE table_schema = 'public'
+             AND table_name = 'invoices'
+             AND column_name = 'po_id'
+           LIMIT 1`
+        ),
+      ]);
+      const hasTable = Boolean(tableResult.rows[0]?.table_ref);
+      const hasColumn = columnResult.rows.length > 0;
+      return hasTable && hasColumn;
+    } catch {
+      return false;
+    }
+  }
+
+  private extractPONumberFromText(rawText: string | undefined): string | null {
+    if (!rawText) return null;
+
+    const patterns = [
+      /\b(PO-\d{4}-\d{5})\b/i,
+      /\bPO\s*#?:?\s*([A-Z0-9-]{4,})\b/i,
+      /\bPurchase\s+Order\s*#?:?\s*([A-Z0-9-]{4,})\b/i,
+    ];
+
+    for (const pattern of patterns) {
+      const match = rawText.match(pattern);
+      if (!match) continue;
+      const normalized = (match[1] || '').trim().toUpperCase();
+      if (!normalized) continue;
+      return normalized.startsWith('PO-') ? normalized : `PO-${normalized}`;
+    }
+
+    return null;
+  }
+
+  private async resolvePurchaseOrderForInvoice(
+    orgId: string,
+    vendorId: string,
+    clientId: string | undefined,
+    siteId: string | undefined,
+    explicitPoId: string | undefined,
+    invoiceDate: string,
+    invoiceTotal: number,
+    ocrRawText?: string
+  ): Promise<string | null> {
+    if (explicitPoId) {
+      const poResult = await pool.query(
+        `SELECT id
+         FROM purchase_orders
+         WHERE id = $1
+           AND org_id = $2
+           AND deleted_at IS NULL`,
+        [explicitPoId, orgId]
+      );
+      if (poResult.rows.length > 0) {
+        return poResult.rows[0].id;
+      }
+    }
+
+    const extractedPoNumber = this.extractPONumberFromText(ocrRawText);
+    if (extractedPoNumber) {
+      const poByNumberResult = await pool.query(
+        `SELECT id
+         FROM purchase_orders
+         WHERE org_id = $1
+           AND po_number = $2
+           AND deleted_at IS NULL
+         LIMIT 1`,
+        [orgId, extractedPoNumber]
+      );
+      if (poByNumberResult.rows.length > 0) {
+        return poByNumberResult.rows[0].id;
+      }
+    }
+
+    if (!siteId) {
+      return null;
+    }
+
+    const fallbackResult = await pool.query(
+      `SELECT
+         po.id,
+         ABS(COALESCE(po.total, 0) - $6::numeric) AS amount_delta,
+         ABS(EXTRACT(EPOCH FROM (po.po_date::timestamp - $5::timestamp))) AS date_delta
+       FROM purchase_orders po
+       WHERE po.org_id = $1
+         AND po.vendor_id = $2
+         AND po.site_id = $3
+         AND ($4::uuid IS NULL OR po.client_id = $4::uuid)
+         AND po.service_scope = 'non_recurring'
+         AND po.status IN ('draft', 'sent', 'approved')
+         AND po.deleted_at IS NULL
+         AND (
+           po.po_date BETWEEN ($5::date - INTERVAL '45 day') AND ($5::date + INTERVAL '45 day')
+           OR (
+             po.expected_delivery_date IS NOT NULL
+             AND po.expected_delivery_date BETWEEN ($5::date - INTERVAL '45 day') AND ($5::date + INTERVAL '45 day')
+           )
+         )
+       ORDER BY amount_delta ASC, date_delta ASC
+       LIMIT 1`,
+      [orgId, vendorId, siteId, clientId || null, invoiceDate, invoiceTotal || 0]
+    );
+
+    return fallbackResult.rows[0]?.id || null;
+  }
+
   /**
    * Upload and process a vendor invoice PDF with OCR
    */
@@ -65,6 +180,7 @@ export class VendorInvoiceService {
         orgId: input.orgId,
         vendorId: input.vendorId,
         clientId: input.clientId,
+        siteId: input.siteId,
         invoiceNumber: ocrResult.invoiceNumber || `INV-${Date.now()}`,
         invoiceDate: ocrResult.invoiceDate || new Date().toISOString().split('T')[0],
         dueDate: ocrResult.dueDate,
@@ -78,12 +194,23 @@ export class VendorInvoiceService {
         },
       };
 
+      const matchedPoId = await this.resolvePurchaseOrderForInvoice(
+        input.orgId,
+        input.vendorId,
+        input.clientId,
+        input.siteId,
+        input.poId,
+        invoiceData.invoiceDate,
+        invoiceData.total,
+        ocrResult.rawText
+      );
+
       const invoiceResult = await client.query(
         `INSERT INTO invoices (
           org_id, vendor_id, client_id, site_id, invoice_number, invoice_date,
-          due_date, period_start, period_end, subtotal, tax, fees, total,
+          due_date, period_start, period_end, subtotal, tax, fees, total, po_id,
           currency, status, notes, file_path, ocr_data
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
         RETURNING *`,
         [
           invoiceData.orgId,
@@ -99,6 +226,7 @@ export class VendorInvoiceService {
           invoiceData.tax,
           invoiceData.fees,
           invoiceData.total,
+          matchedPoId,
           'USD',
           InvoiceStatus.PENDING,
           invoiceData.notes,
@@ -162,10 +290,16 @@ export class VendorInvoiceService {
    * Get vendor invoice by ID
    */
   async getVendorInvoiceById(id: string, orgId: string): Promise<Invoice | null> {
+    const hasPurchaseOrdersTable = await this.canJoinPurchaseOrders();
+    const poSelect = hasPurchaseOrdersTable ? 'po.po_number,' : 'NULL::text AS po_number,';
+    const poJoin = hasPurchaseOrdersTable ? 'LEFT JOIN purchase_orders po ON i.po_id = po.id' : '';
+    const poGroupBy = hasPurchaseOrdersTable ? ', po.po_number' : '';
+
     const result = await pool.query(
       `SELECT i.*,
         v.name as vendor_name,
         c.name as client_name,
+        ${poSelect}
         COALESCE(
           json_agg(
             json_build_object(
@@ -183,9 +317,10 @@ export class VendorInvoiceService {
       FROM invoices i
       LEFT JOIN vendors v ON i.vendor_id = v.id
       LEFT JOIN clients c ON i.client_id = c.id
+      ${poJoin}
       LEFT JOIN invoice_line_items li ON i.id = li.invoice_id
       WHERE i.id = $1 AND i.org_id = $2 AND i.deleted_at IS NULL
-      GROUP BY i.id, v.name, c.name`,
+      GROUP BY i.id, v.name, c.name${poGroupBy}`,
       [id, orgId]
     );
 
@@ -204,6 +339,10 @@ export class VendorInvoiceService {
       status?: InvoiceStatus;
     }
   ): Promise<PaginatedResponse<Invoice>> {
+    const hasPurchaseOrdersTable = await this.canJoinPurchaseOrders();
+    const poSelect = hasPurchaseOrdersTable ? 'po.po_number' : 'NULL::text as po_number';
+    const poJoin = hasPurchaseOrdersTable ? 'LEFT JOIN purchase_orders po ON i.po_id = po.id' : '';
+
     const page = params.page || 1;
     const limit = params.limit || 20;
     const offset = (page - 1) * limit;
@@ -253,10 +392,12 @@ export class VendorInvoiceService {
     const result = await pool.query(
       `SELECT i.*,
         v.name as vendor_name,
-        c.name as client_name
+        c.name as client_name,
+        ${poSelect}
        FROM invoices i
        LEFT JOIN vendors v ON i.vendor_id = v.id
        LEFT JOIN clients c ON i.client_id = c.id
+       ${poJoin}
        ${whereClause}
        ORDER BY i.${sortBy} ${sortOrder}
        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
@@ -351,6 +492,32 @@ export class VendorInvoiceService {
     }
 
     return storageService.getSignedUrl(invoice.file_path);
+  }
+
+  async markAsPaid(
+    id: string,
+    orgId: string,
+    paymentDate: string,
+    paymentMethod?: string,
+    paymentReference?: string
+  ): Promise<Invoice> {
+    const result = await pool.query(
+      `UPDATE invoices
+       SET status = 'paid',
+           payment_date = $1,
+           payment_method = $2,
+           payment_reference = $3,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $4 AND org_id = $5 AND deleted_at IS NULL
+       RETURNING *`,
+      [paymentDate, paymentMethod || null, paymentReference || null, id, orgId]
+    );
+
+    if (result.rows.length === 0) {
+      throw new AppError('Invoice not found', 404, 'INVOICE_NOT_FOUND');
+    }
+
+    return result.rows[0];
   }
 }
 

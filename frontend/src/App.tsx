@@ -12,6 +12,10 @@ import { VendorsPage } from './pages/VendorsPage';
 import { PurchaseOrdersPage } from './pages/PurchaseOrdersPage';
 import { ClientBillingPage } from './pages/ClientBillingPage';
 import { VendorInvoicesPage } from './pages/VendorInvoicesPage';
+import { FinancesPage } from './pages/FinancesPage';
+import { HomePage } from './pages/HomePage';
+import { BillingPage } from './pages/BillingPage';
+import { UserRole } from './types';
 
 function App() {
   return (
@@ -42,7 +46,9 @@ function App() {
           <Route
             path="/sites"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute
+                allowedRoles={[UserRole.ADMIN, UserRole.BROKER_OPS_AGENT, UserRole.ACCOUNT_MANAGER]}
+              >
                 <SitesPage />
               </ProtectedRoute>
             }
@@ -67,9 +73,22 @@ function App() {
           />
 
           <Route
+            path="/finances"
+            element={
+              <ProtectedRoute
+                allowedRoles={[UserRole.ADMIN, UserRole.BILLING_FINANCE, UserRole.VENDOR_MANAGER]}
+              >
+                <FinancesPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
             path="/vendor-invoices"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute
+                allowedRoles={[UserRole.ADMIN, UserRole.BILLING_FINANCE, UserRole.VENDOR_MANAGER]}
+              >
                 <VendorInvoicesPage />
               </ProtectedRoute>
             }
@@ -78,8 +97,19 @@ function App() {
           <Route
             path="/client-billing"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute
+                allowedRoles={[UserRole.ADMIN, UserRole.BILLING_FINANCE]}
+              >
                 <ClientBillingPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/billing"
+            element={
+              <ProtectedRoute allowedRoles={[UserRole.CLIENT_USER]}>
+                <BillingPage />
               </ProtectedRoute>
             }
           />
@@ -93,8 +123,8 @@ function App() {
             }
           />
 
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/" element={<HomePage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>

@@ -7,6 +7,11 @@ import { ApiResponse } from '../types';
 export const createPOValidation = [
   body('client_id').trim().notEmpty().withMessage('Client ID is required'),
   body('vendor_id').trim().notEmpty().withMessage('Vendor ID is required'),
+  body('site_id').trim().notEmpty().withMessage('Site ID is required'),
+  body('service_scope')
+    .optional()
+    .isIn(['non_recurring', 'recurring'])
+    .withMessage('service_scope must be non_recurring or recurring'),
   body('po_date').isDate().withMessage('Valid PO date is required'),
   body('line_items')
     .isArray({ min: 1 })
@@ -18,9 +23,28 @@ export const createPOValidation = [
   body('line_items.*.quantity')
     .isFloat({ gt: 0 })
     .withMessage('Line item quantity must be greater than 0'),
+  body('line_items.*')
+    .custom((item) => {
+      const hasLegacy = item?.unit_price !== undefined && item?.unit_price !== null;
+      const hasVendor = item?.vendor_unit_price !== undefined && item?.vendor_unit_price !== null;
+      const hasClient = item?.client_unit_price !== undefined && item?.client_unit_price !== null;
+      if (!hasLegacy && !hasVendor && !hasClient) {
+        throw new Error('Line item must include vendor_unit_price, client_unit_price, or unit_price');
+      }
+      return true;
+    }),
   body('line_items.*.unit_price')
+    .optional({ nullable: true })
     .isFloat({ min: 0 })
     .withMessage('Line item unit price must be 0 or greater'),
+  body('line_items.*.vendor_unit_price')
+    .optional({ nullable: true })
+    .isFloat({ min: 0 })
+    .withMessage('Line item vendor_unit_price must be 0 or greater'),
+  body('line_items.*.client_unit_price')
+    .optional({ nullable: true })
+    .isFloat({ min: 0 })
+    .withMessage('Line item client_unit_price must be 0 or greater'),
 ];
 
 export const createPO = async (
@@ -107,6 +131,7 @@ export const listPOs = async (
       status,
       client_id,
       vendor_id,
+      site_id,
     } = req.query;
 
     const result = await purchaseOrderService.listPOs(req.user!.orgId, {
@@ -118,6 +143,7 @@ export const listPOs = async (
       status: status as string,
       client_id: client_id as string,
       vendor_id: vendor_id as string,
+      site_id: site_id as string,
     });
 
     const response: ApiResponse = {

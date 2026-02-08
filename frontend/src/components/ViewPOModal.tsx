@@ -102,8 +102,10 @@ export const ViewPOModal: React.FC<ViewPOModalProps> = ({ po: initialPO, onClose
                       <tr>
                         <th className="px-4 py-2 text-left text-xs font-medium uppercase text-gray-500">Description</th>
                         <th className="px-4 py-2 text-right text-xs font-medium uppercase text-gray-500">Qty</th>
-                        <th className="px-4 py-2 text-right text-xs font-medium uppercase text-gray-500">Unit Price</th>
-                        <th className="px-4 py-2 text-right text-xs font-medium uppercase text-gray-500">Amount</th>
+                        <th className="px-4 py-2 text-right text-xs font-medium uppercase text-gray-500">Vendor Unit</th>
+                        <th className="px-4 py-2 text-right text-xs font-medium uppercase text-gray-500">Client Unit</th>
+                        <th className="px-4 py-2 text-right text-xs font-medium uppercase text-gray-500">Vendor Amount</th>
+                        <th className="px-4 py-2 text-right text-xs font-medium uppercase text-gray-500">Client Amount</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 bg-white">
@@ -111,9 +113,25 @@ export const ViewPOModal: React.FC<ViewPOModalProps> = ({ po: initialPO, onClose
                         <tr key={index}>
                           <td className="px-4 py-2 text-sm text-gray-900">{item.description}</td>
                           <td className="px-4 py-2 text-right text-sm text-gray-900">{item.quantity}</td>
-                          <td className="px-4 py-2 text-right text-sm text-gray-900">{formatCurrency(item.unit_price)}</td>
+                          <td className="px-4 py-2 text-right text-sm text-gray-900">
+                            {item.vendor_unit_price !== undefined && item.vendor_unit_price !== null
+                              ? formatCurrency(item.vendor_unit_price)
+                              : '-'}
+                          </td>
+                          <td className="px-4 py-2 text-right text-sm text-gray-900">
+                            {item.client_unit_price !== undefined && item.client_unit_price !== null
+                              ? formatCurrency(item.client_unit_price)
+                              : '-'}
+                          </td>
+                          <td className="px-4 py-2 text-right text-sm text-gray-900">
+                            {item.vendor_amount !== undefined && item.vendor_amount !== null
+                              ? formatCurrency(item.vendor_amount)
+                              : '-'}
+                          </td>
                           <td className="px-4 py-2 text-right text-sm font-medium text-gray-900">
-                            {formatCurrency(item.amount || (item.quantity * item.unit_price))}
+                            {item.client_amount !== undefined && item.client_amount !== null
+                              ? formatCurrency(item.client_amount)
+                              : formatCurrency(item.amount || 0)}
                           </td>
                         </tr>
                       ))}

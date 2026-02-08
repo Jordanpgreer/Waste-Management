@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { VendorInvoice, updateVendorInvoice, getVendorInvoicePdfUrl } from '../api/vendorInvoice';
+import { VendorInvoice, updateVendorInvoice, getVendorInvoicePdfUrl, markVendorInvoiceAsPaid } from '../api/vendorInvoice';
 
 interface ViewVendorInvoiceModalProps {
   invoice: VendorInvoice;
@@ -17,6 +17,10 @@ export const ViewVendorInvoiceModal: React.FC<ViewVendorInvoiceModalProps> = ({
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [markingPaid, setMarkingPaid] = useState(false);
+  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
+  const [paymentMethod, setPaymentMethod] = useState('');
+  const [paymentReference, setPaymentReference] = useState('');
 
   // Form state
   const [formData, setFormData] = useState({
@@ -94,6 +98,24 @@ export const ViewVendorInvoiceModal: React.FC<ViewVendorInvoiceModalProps> = ({
       setError(error.message || 'Failed to update invoice');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleMarkPaid = async () => {
+    try {
+      setMarkingPaid(true);
+      setError('');
+      await markVendorInvoiceAsPaid(invoice.id, {
+        paymentDate,
+        paymentMethod: paymentMethod || undefined,
+        paymentReference: paymentReference || undefined,
+      });
+      onUpdate();
+      onClose();
+    } catch (err: any) {
+      setError(err?.message || 'Failed to mark invoice as paid');
+    } finally {
+      setMarkingPaid(false);
     }
   };
 
@@ -313,6 +335,11 @@ export const ViewVendorInvoiceModal: React.FC<ViewVendorInvoiceModalProps> = ({
                   </div>
                 )}
 
+                <div>
+                  <label className="form-label">Linked PO</label>
+                  <p className="text-sm text-gray-900">{invoice.po_number || 'Unlinked'}</p>
+                </div>
+
                 <div className="border-t border-gray-200 pt-4 mt-4">
                   <h4 className="font-medium text-gray-900 mb-3">Amounts</h4>
 
@@ -430,6 +457,51 @@ export const ViewVendorInvoiceModal: React.FC<ViewVendorInvoiceModalProps> = ({
                     <p className="text-sm text-gray-900">{invoice.notes || 'No notes'}</p>
                   )}
                 </div>
+
+                {invoice.status !== 'paid' && (
+                  <div className="border-t border-gray-200 pt-4 mt-4 space-y-3">
+                    <h4 className="font-medium text-gray-900">Record Vendor Payment</h4>
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                      <div>
+                        <label className="form-label">Payment Date</label>
+                        <input
+                          type="date"
+                          className="form-input"
+                          value={paymentDate}
+                          onChange={(e) => setPaymentDate(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label className="form-label">Method</label>
+                        <input
+                          type="text"
+                          className="form-input"
+                          placeholder="ACH, Check, Wire..."
+                          value={paymentMethod}
+                          onChange={(e) => setPaymentMethod(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label className="form-label">Reference</label>
+                        <input
+                          type="text"
+                          className="form-input"
+                          placeholder="Transaction/check id"
+                          value={paymentReference}
+                          onChange={(e) => setPaymentReference(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn-primary"
+                      onClick={handleMarkPaid}
+                      disabled={markingPaid}
+                    >
+                      {markingPaid ? 'Saving...' : 'Mark as Paid'}
+                    </button>
+                  </div>
+                )}
 
                 {invoice.ocr_data && (
                   <div className="border-t border-gray-200 pt-4 mt-4">

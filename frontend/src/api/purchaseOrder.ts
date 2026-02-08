@@ -7,8 +7,12 @@ export interface POLineItem {
   description: string;
   service_type?: string;
   quantity: number;
-  unit_price: number;
+  unit_price?: number;
+  vendor_unit_price?: number | null;
+  client_unit_price?: number | null;
   amount?: number;
+  vendor_amount?: number | null;
+  client_amount?: number | null;
   notes?: string;
 }
 
@@ -18,7 +22,8 @@ export interface PurchaseOrder {
   po_number: string;
   client_id: string;
   vendor_id: string;
-  site_id?: string;
+  site_id: string;
+  service_scope?: 'non_recurring' | 'recurring';
   po_date: string;
   expected_delivery_date?: string;
   status: 'draft' | 'sent' | 'approved' | 'completed' | 'cancelled';
@@ -40,7 +45,8 @@ export interface PurchaseOrder {
 export interface CreatePOInput {
   client_id: string;
   vendor_id: string;
-  site_id?: string;
+  site_id: string;
+  service_scope?: 'non_recurring' | 'recurring';
   po_date: string;
   expected_delivery_date?: string;
   terms?: string;
@@ -55,6 +61,7 @@ export interface ListPOParams {
   status?: string;
   client_id?: string;
   vendor_id?: string;
+  site_id?: string;
 }
 
 const getAuthHeader = () => {

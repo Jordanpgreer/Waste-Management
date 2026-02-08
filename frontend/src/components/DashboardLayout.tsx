@@ -1,9 +1,18 @@
-import React, { ReactNode } from 'react';
+import React, { ReactNode, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { BrandLogo } from './BrandLogo';
 
 interface DashboardLayoutProps {
   children: ReactNode;
+}
+
+interface NavItem {
+  path: string;
+  label: string;
+  roles: string[];
+  icon: ReactNode;
+  children?: NavItem[];
 }
 
 export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
@@ -11,13 +20,16 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
   const navigate = useNavigate();
   const location = useLocation();
 
+  const [financeMenuOpen, setFinanceMenuOpen] = useState(
+    ['/finances', '/vendor-invoices', '/client-billing'].includes(location.pathname)
+  );
+
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
 
-  // Role-based navigation items
-  const allNavItems = [
+  const allNavItems: NavItem[] = [
     {
       path: '/dashboard',
       label: 'Dashboard',
@@ -35,17 +47,6 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-        </svg>
-      )
-    },
-    {
-      path: '/sites',
-      label: 'My Locations',
-      roles: ['client_user'],
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
         </svg>
       )
     },
@@ -81,19 +82,43 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
       )
     },
     {
-      path: '/vendor-invoices',
-      label: 'Vendor Invoices',
-      roles: ['admin', 'billing_finance', 'vendor_manager'],
+      path: '/purchase-orders',
+      label: 'Purchase Orders',
+      roles: ['admin', 'broker_ops_agent', 'account_manager', 'billing_finance', 'vendor_manager'],
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
         </svg>
       )
     },
     {
-      path: '/client-billing',
-      label: 'Client Billing',
-      roles: ['admin', 'billing_finance'],
+      path: '/finances',
+      label: 'Finances',
+      roles: ['admin', 'billing_finance', 'vendor_manager'],
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-10V6m0 12v-2m8-4a8 8 0 11-16 0 8 8 0 0116 0z" />
+        </svg>
+      ),
+      children: [
+        {
+          path: '/vendor-invoices',
+          label: 'Vendor Invoices',
+          roles: ['admin', 'billing_finance', 'vendor_manager'],
+          icon: null,
+        },
+        {
+          path: '/client-billing',
+          label: 'Client Billing',
+          roles: ['admin', 'billing_finance'],
+          icon: null,
+        },
+      ],
+    },
+    {
+      path: '/billing',
+      label: 'Billing',
+      roles: ['client_user'],
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
@@ -112,56 +137,104 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
     },
   ];
 
-  // Filter navigation items based on user role
-  const navItems = allNavItems.filter(item =>
-    user?.role && item.roles.includes(user.role)
-  );
+  const navItems = allNavItems.filter((item) => user?.role && item.roles.includes(user.role));
 
   const isActive = (path: string) => location.pathname === path;
+  const isFinanceChildActive = ['/vendor-invoices', '/client-billing'].includes(location.pathname);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-secondary-50">
       <div className="flex">
-        {/* Sidebar */}
-        <aside className="w-64 min-h-screen bg-gradient-to-b from-primary-700 to-primary-900 shadow-lg flex flex-col">
-          {/* Logo Section */}
-          <div className="p-6 border-b border-primary-600">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7M8 7V5c0-1 1-2 2-2h4c1 0 2 1 2 2v2M10 11v6M14 11v6" />
-                </svg>
-              </div>
-              <div>
-                <h1 className="text-lg font-bold text-white">WasteFlow</h1>
-                <p className="text-xs text-primary-200">Broker OS</p>
-              </div>
-            </div>
+        <aside className="w-64 min-h-screen bg-[linear-gradient(180deg,#1FA64A_0%,#188E47_42%,#13724A_74%,#0D4A9E_100%)] shadow-lg flex flex-col">
+          <div className="p-6 border-b border-white/10">
+            <BrandLogo imgClassName="h-16 w-auto" wordmarkClassName="text-xl text-white" />
+            <p className="mt-2 text-xs text-white/80">Operations OS</p>
           </div>
 
-          {/* Navigation */}
           <nav className="flex-1 py-6 px-3 space-y-1">
-            {navItems.map((item) => (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`flex items-center px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
-                  isActive(item.path)
-                    ? 'bg-white text-primary-700 shadow-md'
-                    : 'text-primary-100 hover:bg-primary-600 hover:text-white'
-                }`}
-              >
-                <span className={isActive(item.path) ? 'text-primary-700' : ''}>
-                  {item.icon}
-                </span>
-                <span className="ml-3">{item.label}</span>
-              </Link>
-            ))}
+            {navItems.map((item) => {
+              if (item.children) {
+                const children = item.children.filter((child) => user?.role && child.roles.includes(user.role));
+                if (children.length === 0) {
+                  return null;
+                }
+
+                const isParentActive = isActive(item.path) || isFinanceChildActive;
+                const isOpen = financeMenuOpen || isFinanceChildActive;
+
+                return (
+                  <div key={item.path} className="space-y-1">
+                    <div className="flex items-center gap-1">
+                      <Link
+                        to={item.path}
+                        className={`flex flex-1 items-center px-4 py-3 rounded-lg text-base font-semibold transition-all duration-200 ${
+                          isParentActive
+                            ? 'bg-white text-primary-700 shadow-md'
+                            : 'text-blue-50 hover:bg-white/10 hover:text-white'
+                        }`}
+                      >
+                        <span className={isParentActive ? 'text-primary-700' : ''}>{item.icon}</span>
+                        <span className="ml-3">{item.label}</span>
+                      </Link>
+                      <button
+                        type="button"
+                        onClick={() => setFinanceMenuOpen((prev) => !prev)}
+                        className={`px-2 py-3 rounded-lg transition-colors ${
+                          isParentActive ? 'text-primary-700 bg-white/95' : 'text-blue-50 hover:bg-white/10 hover:text-white'
+                        }`}
+                        aria-label="Toggle finances menu"
+                      >
+                        <svg
+                          className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                    </div>
+
+                    {isOpen && (
+                      <div className="ml-6 space-y-1 border-l border-white/20 pl-3">
+                        {children.map((child) => (
+                          <Link
+                            key={child.path}
+                            to={child.path}
+                          className={`block px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
+                              isActive(child.path)
+                                ? 'bg-white text-primary-700 font-semibold shadow-sm'
+                                : 'text-blue-50 hover:bg-white/10 hover:text-white'
+                            }`}
+                          >
+                            {child.label}
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+
+              return (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                className={`flex items-center px-4 py-3 rounded-lg text-base font-semibold transition-all duration-200 ${
+                    isActive(item.path)
+                      ? 'bg-white text-primary-700 shadow-md'
+                      : 'text-blue-50 hover:bg-white/10 hover:text-white'
+                  }`}
+                >
+                  <span className={isActive(item.path) ? 'text-primary-700' : ''}>{item.icon}</span>
+                  <span className="ml-3">{item.label}</span>
+                </Link>
+              );
+            })}
           </nav>
 
-          {/* User Section */}
-          <div className="p-4 border-t border-primary-600">
-            <div className="flex items-center mb-3 p-3 rounded-lg bg-primary-800">
+          <div className="p-4 border-t border-white/10">
+            <div className="flex items-center mb-3 p-3 rounded-lg bg-white/10">
               <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-primary-700 font-bold text-sm">
                 {user?.first_name?.[0]}{user?.last_name?.[0]}
               </div>
@@ -169,14 +242,14 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
                 <p className="text-sm font-medium text-white truncate">
                   {user?.first_name} {user?.last_name}
                 </p>
-                <p className="text-xs text-primary-200 capitalize">
+                <p className="text-xs text-blue-100/80 capitalize">
                   {user?.role?.replace('_', ' ')}
                 </p>
               </div>
             </div>
             <button
               onClick={handleLogout}
-              className="w-full flex items-center justify-center px-4 py-2.5 text-sm font-medium text-white bg-primary-600 hover:bg-primary-500 rounded-lg transition-colors"
+              className="w-full flex items-center justify-center px-4 py-2.5 text-sm font-medium text-white bg-success hover:bg-success-dark rounded-lg transition-colors"
             >
               <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -186,7 +259,6 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
           </div>
         </aside>
 
-        {/* Main Content */}
         <main className="flex-1 overflow-auto">
           <div className="p-8">
             {children}

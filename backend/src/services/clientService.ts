@@ -14,6 +14,10 @@ export interface CreateClientInput {
   billingCity?: string;
   billingState?: string;
   billingZip?: string;
+  assignedVendorId?: string;
+  contractFilePath?: string;
+  contractFileName?: string;
+  contractUploadedAt?: string;
   accountManagerId?: string;
   slaResponseHours?: number;
   slaResolutionHours?: number;
@@ -49,6 +53,22 @@ export interface UpdateSiteInput extends Partial<CreateSiteInput> {
   id: string;
 }
 
+export interface ServiceScheduleItem {
+  id: string;
+  site_id: string;
+  site_name: string;
+  site_city: string;
+  site_state: string;
+  service_type: string;
+  frequency: string;
+  day_of_week: number | null;
+  container_size?: string;
+  container_type?: string;
+  container_count: number;
+  start_date?: string;
+  end_date?: string;
+}
+
 export class ClientService {
   async createClient(input: CreateClientInput): Promise<Client> {
     const client = await pool.connect();
@@ -71,9 +91,10 @@ export class ClientService {
         `INSERT INTO clients (
           org_id, name, legal_name, industry, email, phone, billing_email,
           billing_address, billing_city, billing_state, billing_zip,
+          assigned_vendor_id, contract_file_path, contract_file_name, contract_uploaded_at,
           account_manager_id, sla_response_hours, sla_resolution_hours,
           communication_preferences, notes
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
         RETURNING *`,
         [
           input.orgId,
@@ -87,6 +108,10 @@ export class ClientService {
           input.billingCity,
           input.billingState,
           input.billingZip,
+          input.assignedVendorId,
+          input.contractFilePath,
+          input.contractFileName,
+          input.contractUploadedAt,
           input.accountManagerId,
           input.slaResponseHours || 24,
           input.slaResolutionHours || 72,
@@ -362,6 +387,37 @@ export class ClientService {
       'UPDATE client_sites SET deleted_at = CURRENT_TIMESTAMP WHERE id = $1 AND org_id = $2',
       [id, orgId]
     );
+  }
+
+  async listServiceSchedule(orgId: string, clientId: string): Promise<ServiceScheduleItem[]> {
+    const result = await pool.query(
+      `SELECT
+        ss.id,
+        ss.site_id,
+        cs.name AS site_name,
+        cs.city AS site_city,
+        cs.state AS site_state,
+        ss.service_type::text AS service_type,
+        ss.frequency::text AS frequency,
+        ss.day_of_week,
+        ss.container_size,
+        ss.container_type,
+        ss.container_count,
+        ss.start_date,
+        ss.end_date
+      FROM site_services ss
+      INNER JOIN client_sites cs ON ss.site_id = cs.id
+      WHERE ss.org_id = $1
+        AND cs.client_id = $2
+        AND ss.deleted_at IS NULL
+        AND cs.deleted_at IS NULL
+        AND ss.is_active = true
+        AND cs.is_active = true
+      ORDER BY cs.name ASC, ss.service_type ASC, ss.frequency ASC, ss.day_of_week ASC NULLS LAST`,
+      [orgId, clientId]
+    );
+
+    return result.rows;
   }
 }
 

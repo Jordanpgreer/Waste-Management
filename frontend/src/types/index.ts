@@ -15,6 +15,7 @@ export interface User {
   last_name: string;
   phone?: string;
   role: UserRole;
+  client_id?: string;
   is_active: boolean;
   email_verified: boolean;
   last_login_at?: string;
@@ -47,6 +48,10 @@ export interface Client {
   billing_city?: string;
   billing_state?: string;
   billing_zip?: string;
+  assigned_vendor_id?: string;
+  contract_file_path?: string;
+  contract_file_name?: string;
+  contract_uploaded_at?: string;
   account_manager_id?: string;
   sla_response_hours: number;
   sla_resolution_hours: number;

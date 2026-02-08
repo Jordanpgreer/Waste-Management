@@ -10,6 +10,8 @@ import {
   updateVendorInvoice,
   deleteVendorInvoice,
   getVendorInvoicePdf,
+  markVendorInvoiceAsPaid,
+  markVendorInvoiceAsPaidValidation,
   uploadVendorInvoiceValidation,
   updateVendorInvoiceValidation,
 } from '../controllers/vendorInvoiceController';
@@ -43,6 +45,13 @@ router.put(
   requireRole([UserRole.ADMIN, UserRole.BILLING_FINANCE, UserRole.VENDOR_MANAGER]),
   updateVendorInvoiceValidation,
   updateVendorInvoice
+);
+
+router.post(
+  '/:id/mark-paid',
+  requireRole([UserRole.ADMIN, UserRole.BILLING_FINANCE, UserRole.VENDOR_MANAGER]),
+  markVendorInvoiceAsPaidValidation,
+  markVendorInvoiceAsPaid
 );
 
 // Delete vendor invoice (admin, billing_finance only)

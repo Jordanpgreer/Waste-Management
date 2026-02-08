@@ -63,6 +63,7 @@ export class AuthService {
         orgId: user.org_id,
         email: user.email,
         role: user.role,
+        clientId: user.client_id || undefined,
       });
 
       const refreshToken = generateRefreshToken({
@@ -70,6 +71,7 @@ export class AuthService {
         orgId: user.org_id,
         email: user.email,
         role: user.role,
+        clientId: user.client_id || undefined,
       });
 
       return {
@@ -123,6 +125,7 @@ export class AuthService {
       orgId: user.org_id,
       email: user.email,
       role: user.role,
+      clientId: user.client_id || undefined,
     });
 
     const refreshToken = generateRefreshToken({
@@ -130,6 +133,7 @@ export class AuthService {
       orgId: user.org_id,
       email: user.email,
       role: user.role,
+      clientId: user.client_id || undefined,
     });
 
     const { password_hash, ...userWithoutPassword } = user;
@@ -146,15 +150,29 @@ export class AuthService {
   }
 
   async getUserById(userId: string, orgId: string): Promise<Omit<User, 'password_hash'> | null> {
-    const result = await pool.query(
-      `SELECT id, org_id, email, first_name, last_name, phone, role, is_active,
-              email_verified, last_login_at, created_at, updated_at
-       FROM users
-       WHERE id = $1 AND org_id = $2 AND deleted_at IS NULL`,
-      [userId, orgId]
-    );
-
-    return result.rows[0] || null;
+    try {
+      const result = await pool.query(
+        `SELECT id, org_id, email, first_name, last_name, phone, role, is_active,
+                email_verified, client_id, last_login_at, created_at, updated_at
+         FROM users
+         WHERE id = $1 AND org_id = $2 AND deleted_at IS NULL`,
+        [userId, orgId]
+      );
+      return result.rows[0] || null;
+    } catch (error: any) {
+      // Backward compatibility for databases that do not yet include users.client_id
+      if (error?.code === '42703') {
+        const fallback = await pool.query(
+          `SELECT id, org_id, email, first_name, last_name, phone, role, is_active,
+                  email_verified, last_login_at, created_at, updated_at
+           FROM users
+           WHERE id = $1 AND org_id = $2 AND deleted_at IS NULL`,
+          [userId, orgId]
+        );
+        return fallback.rows[0] || null;
+      }
+      throw error;
+    }
   }
 
   async changePassword(

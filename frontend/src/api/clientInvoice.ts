@@ -57,7 +57,7 @@ export interface ListClientInvoiceParams {
 }
 
 const getAuthHeader = () => {
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('access_token');
   return { Authorization: `Bearer ${token}` };
 };
 

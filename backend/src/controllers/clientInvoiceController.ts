@@ -2,7 +2,7 @@ import { Response, NextFunction } from 'express';
 import { body, validationResult } from 'express-validator';
 import { clientInvoiceService } from '../services/clientInvoiceService';
 import { AuthRequest } from '../middleware/auth';
-import { ApiResponse } from '../types';
+import { ApiResponse, UserRole } from '../types';
 
 export const generateClientInvoiceValidation = [
   body('client_id').trim().notEmpty().withMessage('Client ID is required'),
@@ -91,6 +91,19 @@ export const listClientInvoices = async (
   try {
     const { page, limit, sort_by, sort_order, search, status, client_id } =
       req.query;
+    const filteredClientId =
+      req.user?.role === UserRole.CLIENT_USER ? req.user.clientId : undefined;
+
+    if (req.user?.role === UserRole.CLIENT_USER && !filteredClientId) {
+      const response: ApiResponse = {
+        success: false,
+        error: {
+          code: 'NO_CLIENT_ASSOCIATION',
+          message: 'Your account is not associated with a client profile.',
+        },
+      };
+      return res.status(403).json(response);
+    }
 
     const result = await clientInvoiceService.listClientInvoices(
       req.user!.orgId,
@@ -101,7 +114,7 @@ export const listClientInvoices = async (
         sort_order: sort_order as 'asc' | 'desc',
         search: search as string,
         status: status as string,
-        client_id: client_id as string,
+        client_id: filteredClientId || (client_id as string),
       }
     );
 

@@ -25,6 +25,7 @@ export const VendorsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingVendor, setEditingVendor] = useState<Vendor | null>(null);
+  const [viewingVendor, setViewingVendor] = useState<Vendor | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [vendorTypeFilter, setVendorTypeFilter] = useState('');
   const [serviceCapabilityFilter, setServiceCapabilityFilter] = useState('');
@@ -65,11 +66,13 @@ export const VendorsPage: React.FC = () => {
       try {
         await deleteVendor(id);
         fetchVendors();
+        return true;
       } catch (error) {
         console.error('Failed to delete vendor:', error);
         alert('Failed to delete vendor. Please try again.');
       }
     }
+    return false;
   };
 
   const handleCreateSuccess = () => {
@@ -266,7 +269,11 @@ export const VendorsPage: React.FC = () => {
                 </thead>
                 <tbody className="bg-white divide-y divide-secondary-200">
                   {vendors.map((vendor) => (
-                    <tr key={vendor.id} className="hover:bg-secondary-50 transition-colors">
+                    <tr
+                      key={vendor.id}
+                      className="hover:bg-secondary-50 transition-colors cursor-pointer"
+                      onClick={() => setViewingVendor(vendor)}
+                    >
                       <td className="px-6 py-4">
                         <div className="flex items-center">
                           <div className="flex-shrink-0 h-10 w-10 bg-primary-100 rounded-full flex items-center justify-center">
@@ -336,13 +343,19 @@ export const VendorsPage: React.FC = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <button
-                          onClick={() => handleEdit(vendor)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEdit(vendor);
+                          }}
                           className="text-primary-600 hover:text-primary-900 mr-4 transition-colors"
                         >
                           Edit
                         </button>
                         <button
-                          onClick={() => handleDelete(vendor.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void handleDelete(vendor.id);
+                          }}
                           className="text-danger hover:text-danger-dark transition-colors"
                         >
                           Delete
@@ -395,6 +408,122 @@ export const VendorsPage: React.FC = () => {
             onClose={() => setEditingVendor(null)}
             onSuccess={handleEditSuccess}
           />
+        )}
+
+        {viewingVendor && (
+          <div className="fixed z-50 inset-0 overflow-y-auto animate-fade-in">
+            <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+              <div
+                className="fixed inset-0 bg-secondary-900 bg-opacity-50 transition-opacity"
+                onClick={() => setViewingVendor(null)}
+              ></div>
+
+              <div className="inline-block align-bottom bg-white rounded-xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-3xl sm:w-full animate-slide-up">
+                <div className="bg-white px-6 pt-6 pb-5">
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <h3 className="text-xl font-bold text-secondary-900">{viewingVendor.name}</h3>
+                      <p className="text-sm text-secondary-500">Vendor Details</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setViewingVendor(null)}
+                      className="text-secondary-400 hover:text-secondary-600 transition-colors"
+                    >
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-xs font-semibold text-secondary-500 uppercase">Legal Name</p>
+                      <p className="text-sm text-secondary-900 mt-1">{viewingVendor.legal_name || '-'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-secondary-500 uppercase">Vendor Type</p>
+                      <p className="text-sm text-secondary-900 mt-1">
+                        {viewingVendor.vendor_type ? viewingVendor.vendor_type.replace('_', ' ') : '-'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-secondary-500 uppercase">Email</p>
+                      <p className="text-sm text-secondary-900 mt-1">{viewingVendor.email || '-'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-secondary-500 uppercase">Phone</p>
+                      <p className="text-sm text-secondary-900 mt-1">{viewingVendor.phone || '-'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-secondary-500 uppercase">Emergency Phone</p>
+                      <p className="text-sm text-secondary-900 mt-1">{viewingVendor.emergency_phone || '-'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-secondary-500 uppercase">Status</p>
+                      <p className="mt-1">
+                        <span className={viewingVendor.is_active ? 'badge-success' : 'badge-danger'}>
+                          {viewingVendor.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                      </p>
+                    </div>
+                    <div className="col-span-2">
+                      <p className="text-xs font-semibold text-secondary-500 uppercase">Address</p>
+                      <p className="text-sm text-secondary-900 mt-1">
+                        {[
+                          viewingVendor.address,
+                          viewingVendor.city,
+                          viewingVendor.state,
+                          viewingVendor.zip,
+                        ]
+                          .filter(Boolean)
+                          .join(', ') || '-'}
+                      </p>
+                    </div>
+                    <div className="col-span-2">
+                      <p className="text-xs font-semibold text-secondary-500 uppercase">Service Capabilities</p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {viewingVendor.service_capabilities && viewingVendor.service_capabilities.length > 0 ? (
+                          viewingVendor.service_capabilities.map((capability) => (
+                            <span key={capability} className="badge bg-blue-100 text-blue-800 text-xs">
+                              {getServiceCapabilityLabel(capability)}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-sm text-secondary-900">-</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-secondary-50 px-6 py-4 flex justify-end space-x-3">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const deleted = await handleDelete(viewingVendor.id);
+                      if (deleted) {
+                        setViewingVendor(null);
+                      }
+                    }}
+                    className="btn-secondary text-danger border-danger hover:bg-danger/5"
+                  >
+                    Delete
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleEdit(viewingVendor);
+                      setViewingVendor(null);
+                    }}
+                    className="btn-primary"
+                  >
+                    Edit Vendor
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </DashboardLayout>

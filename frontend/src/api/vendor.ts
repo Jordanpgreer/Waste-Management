@@ -42,11 +42,10 @@ export interface CreateVendorInput {
   primaryContactEmail?: string;
   serviceCapabilities?: string[];
   coverageAreas?: string[];
-  performanceScore?: number;
 }
 
 export interface UpdateVendorInput extends Partial<CreateVendorInput> {
-  id: string;
+  performanceScore?: number;
 }
 
 export interface VendorsListResponse {
@@ -78,7 +77,7 @@ export const createVendor = async (data: CreateVendorInput): Promise<Vendor> => 
   return response.data!.vendor;
 };
 
-export const updateVendor = async (id: string, data: Partial<CreateVendorInput>): Promise<Vendor> => {
+export const updateVendor = async (id: string, data: UpdateVendorInput): Promise<Vendor> => {
   const response = await apiClient.put<{ vendor: Vendor }>(`/vendors/${id}`, data);
   return response.data!.vendor;
 };

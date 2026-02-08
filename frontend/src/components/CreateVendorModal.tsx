@@ -466,7 +466,7 @@ export const CreateVendorModal: React.FC<CreateVendorModalProps> = ({ onClose, o
                             formData.serviceCapabilities?.includes(capability.value) || false
                           }
                           onChange={() => handleServiceCapabilityToggle(capability.value)}
-                          className="w-4 h-4 text-primary-600 border-secondary-300 rounded focus:ring-primary-500"
+                          className="w-4 h-4 text-primary-600 border-secondary-300 rounded focus:ring-success"
                         />
                         <span className="text-sm text-secondary-700">{capability.label}</span>
                       </label>
@@ -542,3 +542,4 @@ export const CreateVendorModal: React.FC<CreateVendorModalProps> = ({ onClose, o
     </div>
   );
 };
+
