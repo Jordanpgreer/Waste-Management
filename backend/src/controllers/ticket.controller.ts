@@ -12,9 +12,12 @@ import { pool } from '../config/database';
 import * as pdfParse from 'pdf-parse';
 import { promises as fs } from 'fs';
 import path from 'path';
+import { emailService } from '../services/emailService';
 
 export class TicketController {
   private ticketService: TicketService;
+  private readonly defaultAutomationFromEmail =
+    process.env.AUTOMATION_FROM_EMAIL?.trim() || 'jordanpgreer@gmail.com';
 
   constructor(ticketService: TicketService) {
     this.ticketService = ticketService;
@@ -104,11 +107,39 @@ export class TicketController {
   }
 
   private async resolveSenderEmail(orgId: string, userId: string): Promise<string | null> {
+    const configuredSender = process.env.AUTOMATION_FROM_EMAIL?.trim();
+    if (configuredSender) {
+      return configuredSender;
+    }
+
     const result = await pool.query(
       'SELECT email FROM users WHERE id = $1 AND org_id = $2 AND deleted_at IS NULL',
       [userId, orgId]
     );
-    return result.rows[0]?.email || null;
+    return result.rows[0]?.email || this.defaultAutomationFromEmail;
+  }
+
+  private async sendOutgoingEmailIfNeeded(
+    shouldSend: boolean,
+    fromEmail: string | null,
+    toEmail: string | null,
+    subject: string,
+    message: string
+  ): Promise<void> {
+    if (!shouldSend) {
+      return;
+    }
+
+    if (!toEmail) {
+      return;
+    }
+
+    await emailService.sendEmail({
+      from: fromEmail || this.defaultAutomationFromEmail,
+      to: toEmail,
+      subject,
+      text: message,
+    });
   }
 
   private async resolveRecipientEmail(
@@ -490,6 +521,7 @@ export class TicketController {
         typeof email_subject === 'string' && email_subject.trim()
           ? email_subject.trim()
           : `Request #${accessibleTicket.ticket_number}: ${accessibleTicket.subject}`;
+      const shouldSendOutboundEmail = !isClientUser && !Boolean(is_internal) && Boolean(resolvedRecipientEmail);
 
       if (
         !isClientUser &&
@@ -506,6 +538,23 @@ export class TicketController {
         return res.status(400).json({
           success: false,
           error: { message: 'Recipient email is invalid' },
+        });
+      }
+
+      try {
+        await this.sendOutgoingEmailIfNeeded(
+          shouldSendOutboundEmail,
+          senderEmail,
+          resolvedRecipientEmail,
+          messageEmailSubject,
+          message
+        );
+      } catch (sendError: any) {
+        return res.status(502).json({
+          success: false,
+          error: {
+            message: sendError?.message || 'Failed to send outbound email',
+          },
         });
       }
 
@@ -786,6 +835,7 @@ export class TicketController {
       const explicitOutgoing = Boolean(overrideMessage || rawRecipientType || rawRecipientEmail || rawEmailSubject);
       const messageEmailSubject =
         rawEmailSubject || `Request #${accessibleTicket.ticket_number}: ${accessibleTicket.subject}`;
+      const shouldSendOutboundEmail = !isClientUser && explicitOutgoing && Boolean(resolvedRecipientEmail);
 
       if (
         !isClientUser &&
@@ -802,6 +852,23 @@ export class TicketController {
         return res.status(400).json({
           success: false,
           error: { message: 'Recipient email is invalid' },
+        });
+      }
+
+      try {
+        await this.sendOutgoingEmailIfNeeded(
+          shouldSendOutboundEmail,
+          senderEmail,
+          resolvedRecipientEmail,
+          messageEmailSubject,
+          messageBody
+        );
+      } catch (sendError: any) {
+        return res.status(502).json({
+          success: false,
+          error: {
+            message: sendError?.message || 'Failed to send outbound email',
+          },
         });
       }
 

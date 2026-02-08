@@ -475,6 +475,23 @@ CREATE TABLE audit_logs (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Automation Workflows
+CREATE TABLE automation_workflows (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  name VARCHAR(200) NOT NULL,
+  description TEXT,
+  ticket_type ticket_type NOT NULL,
+  trigger_event VARCHAR(50) NOT NULL DEFAULT 'ticket_created',
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  steps JSONB NOT NULL DEFAULT '[]',
+  created_by UUID REFERENCES users(id),
+  updated_by UUID REFERENCES users(id),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  deleted_at TIMESTAMP WITH TIME ZONE
+);
+
 -- ==============================================
 -- INDEXES
 -- ==============================================
@@ -524,6 +541,11 @@ CREATE INDEX idx_audit_logs_org_id ON audit_logs(org_id);
 CREATE INDEX idx_audit_logs_entity ON audit_logs(entity_type, entity_id);
 CREATE INDEX idx_audit_logs_created_at ON audit_logs(created_at DESC);
 
+-- Automation workflow indexes
+CREATE INDEX idx_automation_workflows_org_id ON automation_workflows(org_id);
+CREATE INDEX idx_automation_workflows_ticket_type ON automation_workflows(ticket_type);
+CREATE INDEX idx_automation_workflows_is_active ON automation_workflows(is_active);
+
 -- Full text search indexes
 CREATE INDEX idx_tickets_search ON tickets USING gin(to_tsvector('english', subject || ' ' || COALESCE(description, '')));
 CREATE INDEX idx_clients_search ON clients USING gin(to_tsvector('english', name || ' ' || COALESCE(legal_name, '')));
@@ -570,6 +592,9 @@ CREATE TRIGGER update_site_assets_updated_at BEFORE UPDATE ON site_assets
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_documents_updated_at BEFORE UPDATE ON documents
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_automation_workflows_updated_at BEFORE UPDATE ON automation_workflows
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- Generate ticket number function (removed - handled by application layer)

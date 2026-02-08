@@ -15,6 +15,7 @@ import { VendorInvoicesPage } from './pages/VendorInvoicesPage';
 import { FinancesPage } from './pages/FinancesPage';
 import { HomePage } from './pages/HomePage';
 import { BillingPage } from './pages/BillingPage';
+import { AutomationWorkflowsPage } from './pages/AutomationWorkflowsPage';
 import { UserRole } from './types';
 
 function App() {
@@ -110,6 +111,15 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={[UserRole.CLIENT_USER]}>
                 <BillingPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/automation-workflows"
+            element={
+              <ProtectedRoute allowedRoles={[UserRole.ADMIN]}>
+                <AutomationWorkflowsPage />
               </ProtectedRoute>
             }
           />

@@ -92,6 +92,16 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) =>
       )
     },
     {
+      path: '/automation-workflows',
+      label: 'Automation Workflows',
+      roles: ['admin'],
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 3a3 3 0 00-3 3v1.5H6a3 3 0 000 6h.75V18a3 3 0 006 0v-1.5h.75a3 3 0 000-6h-.75V6a3 3 0 00-3-3z" />
+        </svg>
+      )
+    },
+    {
       path: '/finances',
       label: 'Finances',
       roles: ['admin', 'billing_finance', 'vendor_manager'],

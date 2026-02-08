@@ -9,8 +9,11 @@ import clientInvoiceRoutes from './routes/clientInvoiceRoutes';
 import invoiceMatchingRoutes from './routes/invoiceMatchingRoutes';
 import vendorInvoiceRoutes from './routes/vendorInvoiceRoutes';
 import { createTicketRoutes } from './routes/ticket.routes';
+import { createAutomationWorkflowRoutes } from './routes/automationWorkflowRoutes';
 import { TicketService } from './services/ticket.service';
 import { TicketController } from './controllers/ticket.controller';
+import { AutomationWorkflowService } from './services/automationWorkflowService';
+import { AutomationWorkflowController } from './controllers/automationWorkflowController';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { pool } from './config/database';
 
@@ -42,6 +45,8 @@ app.get('/health', (_req, res) => {
 // Initialize services
 const ticketService = new TicketService(pool);
 const ticketController = new TicketController(ticketService);
+const automationWorkflowService = new AutomationWorkflowService(pool);
+const automationWorkflowController = new AutomationWorkflowController(automationWorkflowService);
 
 // Register routes
 app.use(`/api/${API_VERSION}/auth`, authRoutes);
@@ -52,6 +57,10 @@ app.use(`/api/${API_VERSION}/client-invoices`, clientInvoiceRoutes);
 app.use(`/api/${API_VERSION}/invoice-matching`, invoiceMatchingRoutes);
 app.use(`/api/${API_VERSION}/vendor-invoices`, vendorInvoiceRoutes);
 app.use(`/api/${API_VERSION}/tickets`, createTicketRoutes(ticketController));
+app.use(
+  `/api/${API_VERSION}/automation-workflows`,
+  createAutomationWorkflowRoutes(automationWorkflowController)
+);
 
 app.use(notFoundHandler);
 app.use(errorHandler);
